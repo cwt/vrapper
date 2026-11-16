@@ -46,3 +46,10 @@ Recorded for the [bug tracker](index.md). Re-run `mvn clean verify` after fixing
    - **Result:** `BUILD SUCCESS` in `14.203 s` across all 41 reactor modules.
    - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 310, Failures: 0, Errors: 0, Skipped: 2` (includes new `CommandLineTests.testCommandChaining`).
    - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
+
+## Post-fix run — Bug 2 (`2026-11-16`)
+
+1. **`mvn -B clean verify --file pom.xml`:**
+   - **Result:** `BUILD SUCCESS` in `14.193 s` across all 41 reactor modules.
+   - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 313, Failures: 0, Errors: 0, Skipped: 2` (includes 3 new `RESUME_ON_MODE_ENTER` tests in `InsertModeTests`).
+   - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.

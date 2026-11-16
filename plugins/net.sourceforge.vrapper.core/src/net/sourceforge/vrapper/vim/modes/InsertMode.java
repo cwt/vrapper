@@ -130,9 +130,11 @@ public class InsertMode extends AbstractMode {
             editorAdaptor.getHistory().lock("insertmode");
         }
 
-        count = 1;
-        repetitionCommand = null;
-        mOnLeaveHint = null;
+        if (initMode) {
+            count = 1;
+            repetitionCommand = null;
+            mOnLeaveHint = null;
+        }
 
         try {
             editorAdaptor.getViewportService().setRepaint(false);
