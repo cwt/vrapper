@@ -26,9 +26,9 @@ class CLabel extends org.eclipse.swt.custom.CLabel {
     @Override
     protected String shortenText(GC gc, String t, int width) {
         // Drop the "--" at the ends if the current text is too long.
-        String shorter = modeName;
+        String shorter = modeName != null ? modeName : (t != null ? t : "");
         // If set to e.g. "(insert) VISUAL LINE", make it even shorter.
-        if (gc.textExtent(shorter).x > width
+        if (gc != null && gc.textExtent(shorter).x > width
                 && shorter.toUpperCase(Locale.ENGLISH).contains("VISUAL")) {
             shorter = shorter.replace("VISUAL", "VIS");
         }
@@ -37,6 +37,6 @@ class CLabel extends org.eclipse.swt.custom.CLabel {
 
     public void setText(String modeName) {
         this.modeName = modeName;
-        super.setText("-- " + modeName + " --");
+        super.setText(modeName != null ? "-- " + modeName + " --" : "");
     }
 }
