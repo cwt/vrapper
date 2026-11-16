@@ -90,6 +90,7 @@ public class CommandLineParser extends AbstractCommandParser {
     public static final Pattern VSPLIT_CMD_PATTERN = Pattern.compile("^"
                     + "(vsplit|vs|vsp)"
                     + "\\s+");
+    private static final Pattern COMMAND_CHAIN_SEPARATOR = Pattern.compile(" \\| ");
 
 	private Matcher matcher;
 
@@ -601,8 +602,14 @@ public class CommandLineParser extends AbstractCommandParser {
 
     @Override
     public Command parseAndExecute(String first, String command) {
-        // set the @: register even if this command is invalid
-        editor.getRegisterManager().setLastCommand(first + command + "<cr>");
+        return parseAndExecute(first, command, true);
+    }
+
+    private Command parseAndExecute(String first, String command, boolean recordLastCommand) {
+        if (recordLastCommand) {
+            // set the @: register even if this command is invalid
+            editor.getRegisterManager().setLastCommand(first + command + "<cr>");
+        }
 
         //remove any superfluous ':' preceding the command
         if (first != null) {
@@ -613,25 +620,27 @@ public class CommandLineParser extends AbstractCommandParser {
 
         //command chaining using " | "
         if (command.indexOf(" | ") > -1 && ! command.startsWith("com")) {
-            String[] commands = command.split(" | ");
+            String[] commands = COMMAND_CHAIN_SEPARATOR.split(command);
             editor.getHistory().beginCompoundChange();
             editor.getHistory().lock("chained-commands");
             boolean performedChain = false;
             try {
                 Command c;
                 for (String chainCommand : commands) {
-                    if ( ! "|".equals(chainCommand)) {
-                        //recurse!
-                        c = parseAndExecute(first, chainCommand);
-                        if (c != null) {
-                            c.execute(editor);
-                            //this really was a set of commands chained together!
-                            performedChain = true;
-                        }
-                        else {
-                            //exit on first failed command
-                            break;
-                        }
+                    String trimmed = chainCommand.trim();
+                    if (trimmed.isEmpty()) {
+                        break;
+                    }
+                    //recurse!
+                    c = parseAndExecute(first, trimmed, false);
+                    if (c != null) {
+                        c.execute(editor);
+                        //this really was a set of commands chained together!
+                        performedChain = true;
+                    }
+                    else {
+                        //exit on first failed command
+                        break;
                     }
                 }
             }

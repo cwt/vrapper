@@ -377,6 +377,38 @@ public class CommandLineTests extends VimTestCase {
     	assertNotNull(command);
     	assertTrue(command instanceof SwitchBufferCommand);
     }
+
+    @Test
+    public void testCommandChaining() {
+        when(platform.getSearchAndReplaceService()).thenReturn(new TestSearchService(content, configuration));
+        super.installSaneRegisterManager();
+        adaptor.changeModeSafely(NormalMode.NAME);
+
+        adaptor.getConfiguration().set(Options.TAB_STOP, 8);
+        adaptor.getConfiguration().set(Options.SHIFT_WIDTH, 8);
+        type(parseKeyStrokes(":set ts=2 | set sw=4<CR>"));
+        assertEquals(2, adaptor.getConfiguration().get(Options.TAB_STOP).intValue());
+        assertEquals(4, adaptor.getConfiguration().get(Options.SHIFT_WIDTH).intValue());
+        assertEquals(":set ts=2 | set sw=4<cr>",
+                registerManager.getRegister(RegisterManager.REGISTER_NAME_COMMAND).getContent().getText());
+
+        // Extra whitespace around separator and multiple chained commands
+        type(parseKeyStrokes(":let @x=one |  let @y=two | set ts=6<CR>"));
+        assertEquals("one", registerManager.getRegister("x").getContent().getText());
+        assertEquals("two", registerManager.getRegister("y").getContent().getText());
+        assertEquals(6, adaptor.getConfiguration().get(Options.TAB_STOP).intValue());
+
+        // Chained substitutions
+        content.setText("foo baz");
+        type(parseKeyStrokes(":s/foo/bar/ | s/baz/qux/<CR>"));
+        assertEquals("bar qux", content.getText());
+
+        // Fallback when " | " is part of a literal substitution pattern (empty "/" register);
+        // Java regex treats unescaped " | " as alternation (" " or " "), yielding "alpha-|-beta".
+        content.setText("alpha | beta");
+        type(parseKeyStrokes(":s/ | /-/g<CR>"));
+        assertEquals("alpha-|-beta", content.getText());
+    }
     
     @Test
     public void testRetab() throws CommandExecutionException {

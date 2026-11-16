@@ -30,16 +30,16 @@ Source-level and build/test audit findings for the `vrapper` JDK 25 modernizatio
 
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
-| HIGH | 5 | 1 | 6 |
+| HIGH | 4 | 2 | 6 |
 | MEDIUM | 6 | 0 | 6 |
 | LOW | 1 | 0 | 1 |
-| **Total** | **12** | **1** | **13** |
+| **Total** | **11** | **2** | **13** |
 
 ## All Bugs
 
 | # | Title | Severity | Upstream | Status |
 |---|---|---|---|---|
-| [1](001.md) | `CommandLineParser` splits `" \| "` command chains on every space | HIGH | — | Open |
+| [1](001.md) | `CommandLineParser` splits `" \| "` command chains on every space | HIGH | — | Fixed |
 | [2](002.md) | `InsertMode` wipes `mOnLeaveHint`, `count`, and `repetitionCommand` on `RESUME_ON_MODE_ENTER` | HIGH | — | Open |
 | [3](003.md) | `s/\%V` substitution replaces outside visual-block columns on multi-line selections | HIGH | [#848](https://github.com/vrapper/vrapper/issues/848) | Open |
 | [4](004.md) | Pending `imap` buffer (`cursorBeforeMapping`) erases autocompleted or inserted text | HIGH | [#827](https://github.com/vrapper/vrapper/issues/827) / [#889](https://github.com/vrapper/vrapper/issues/889) | Open |

@@ -39,3 +39,10 @@ Recorded for the [bug tracker](index.md). Re-run `mvn clean verify` after fixing
    - **OSGi qualifiers:** `<project.build.outputTimestamp>-</project.build.outputTimestamp>` in [`pom.xml`](../../pom.xml#L8-L13) overrode Maven `3.10.1`'s fixed `1980-02-01` Super POM timestamp; bundles/features/update-site built with `0.75.0.202611160940`.
    - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 309, Failures: 0, Errors: 0, Skipped: 2` (only the 2 pre-existing `@Ignore` tests skipped).
    - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
+
+## Post-fix run — Bug 1 (`2026-11-16`)
+
+1. **`mvn -B clean verify --file pom.xml`:**
+   - **Result:** `BUILD SUCCESS` in `14.203 s` across all 41 reactor modules.
+   - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 310, Failures: 0, Errors: 0, Skipped: 2` (includes new `CommandLineTests.testCommandChaining`).
+   - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
