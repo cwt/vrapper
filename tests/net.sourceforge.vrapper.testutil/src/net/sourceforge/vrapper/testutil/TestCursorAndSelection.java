@@ -195,7 +195,17 @@ public class TestCursorAndSelection implements CursorService, SelectionService {
 
     @Override
     public Position getPositionByVisualOffset(int lineNo, int visualOffset) {
-	    LineInformation lineInformation = content.getLineInformation(lineNo);
+        if (lineNo < 0 || lineNo >= content.getNumberOfLines()) {
+            return null;
+        }
+        LineInformation lineInformation = content.getLineInformation(lineNo);
+        int length = lineInformation.getLength();
+        if (length == 0) {
+            return visualOffset == 0 ? new DumbPosition(lineInformation.getBeginOffset()) : null;
+        }
+        if (visualOffset < 0 || visualOffset >= length) {
+            return null;
+        }
         return new DumbPosition(lineInformation.getBeginOffset() + visualOffset);
     }
 

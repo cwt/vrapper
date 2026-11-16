@@ -146,7 +146,10 @@ public class BlockwiseVisualMode extends AbstractVisualMode {
                 throws CommandExecutionException {
             final CursorService cursorService = editorAdaptor.getCursorService();
 	        final TextContent modelContent = editorAdaptor.getModelContent();
-            Position pos = cursorService.getPositionByVisualOffset(line, vOffset);
+            Position pos = mode == InsertModeType.INSERT
+                    ? BlockWiseSelection.getPositionOrEOLByVisualOffset(
+                            cursorService, modelContent.getLineInformation(line), vOffset)
+                    : cursorService.getPositionByVisualOffset(line, vOffset);
             if (pos == null && mode == InsertModeType.APPEND) {
                 //
                 // "Extend" the line with spaces until it reaches vOffset.

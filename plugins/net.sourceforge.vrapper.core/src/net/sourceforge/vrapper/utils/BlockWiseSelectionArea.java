@@ -34,11 +34,15 @@ public class BlockWiseSelectionArea extends SelectionArea {
         final CursorService cursorService = editorAdaptor.getCursorService();
         final int startVOffset = cursorService.getVisualOffset(start);
         //
-        // Find a line with a character at the specified start visual offset.
+        // Find a line with a character at (or ending right at) the specified start visual offset.
         //
-        while (cursorService.getPositionByVisualOffset(lastLineNo, startVOffset) == null
-                && lastLineNo >= firstLine.getNumber()) {
+        while (lastLineNo >= firstLine.getNumber()
+                && BlockWiseSelection.getPositionOrEOLByVisualOffset(
+                        cursorService, modelContent.getLineInformation(lastLineNo), startVOffset) == null) {
             --lastLineNo;
+        }
+        if (lastLineNo < firstLine.getNumber()) {
+            lastLineNo = firstLine.getNumber();
         }
         Position end = null;
         if (!isUntilEOL()) {

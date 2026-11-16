@@ -104,6 +104,20 @@ public class BlockWiseSelection extends AbstractSelection {
     }
 
     /**
+     * Resolves the position on {@code line} at {@code visualOffset}, falling back to
+     * {@code line.getEndOffset()} when the line ends exactly at {@code visualOffset}.
+     */
+    public static Position getPositionOrEOLByVisualOffset(final CursorService cursorService,
+            final LineInformation line, final int visualOffset) {
+        final Position pos = cursorService.getPositionByVisualOffset(line.getNumber(), visualOffset);
+        if (pos != null) {
+            return pos;
+        }
+        final Position lineEndPos = cursorService.newPositionForModelOffset(line.getEndOffset());
+        return cursorService.getVisualOffset(lineEndPos) == visualOffset ? lineEndPos : null;
+    }
+
+    /**
      * Text block representation by a line range and a visual (think pixel)
      * range.
      */
@@ -115,11 +129,20 @@ public class BlockWiseSelection extends AbstractSelection {
     }
 
     /**
-     * Calculates text block from too positions in text.
+     * Calculates text block from two positions in text using the cursor service's EOL policy.
      */
     public static TextBlock getTextBlock(final Position from,
             final Position to, final TextContent textContent,
             final CursorService cursorService) {
+        return getTextBlock(from, to, textContent, cursorService, cursorService.shouldStickToEOL());
+    }
+
+    /**
+     * Calculates text block from two positions in text, optionally extending each line to EOL.
+     */
+    public static TextBlock getTextBlock(final Position from,
+            final Position to, final TextContent textContent,
+            final CursorService cursorService, final boolean stickToEOL) {
         final LineInformation fromLine = textContent.getLineInformationOfOffset(from.getModelOffset());
         final LineInformation toLine   = textContent.getLineInformationOfOffset(to.getModelOffset());
         final int fromLineNo = fromLine.getNumber();
@@ -134,7 +157,15 @@ public class BlockWiseSelection extends AbstractSelection {
         }
         result.endLine = Math.min(result.endLine, textContent.getNumberOfLines() - 1);
         final int fromVOffset = cursorService.getVisualOffset(from);
-        final int toVOffset = cursorService.getVisualOffset(to);
+        int toVOffset = cursorService.getVisualOffset(to);
+        if (stickToEOL && toLine.getLength() > 0
+                && toLine.getEndOffset() == textContent.getTextLength()
+                && to.getModelOffset() == toLine.getEndOffset() - 1) {
+            // AbstractSelection.reset clamps EOF offsets back by 1 when selection=inclusive;
+            // under TO_EOL ($), treat the EOF line's end symmetrically with newline-terminated lines.
+            toVOffset = cursorService.getVisualOffset(
+                    cursorService.newPositionForModelOffset(toLine.getEndOffset()));
+        }
         if (fromVOffset < toVOffset) {
             result.startVisualOffset = fromVOffset;
             result.endVisualOffset = toVOffset;
@@ -142,12 +173,18 @@ public class BlockWiseSelection extends AbstractSelection {
             result.startVisualOffset = toVOffset;
             result.endVisualOffset = fromVOffset;
         }
-        if (cursorService.shouldStickToEOL()) {
+        if (stickToEOL) {
             result.endVisualOffset = result.startVisualOffset;
             for (int i = result.startLine; i <= result.endLine; i++) {
                 final LineInformation line = textContent.getLineInformation(i);
-                final int lastOfs = cursorService.getVisualOffset(cursorService
-                        .shiftPositionForModelOffset(line.getEndOffset(), -1, false));
+                final int lastOfs;
+                if (line.getLength() > 0) {
+                    lastOfs = cursorService.getVisualOffset(cursorService
+                            .shiftPositionForModelOffset(line.getEndOffset(), -1, false));
+                } else {
+                    lastOfs = cursorService.getVisualOffset(
+                            cursorService.newPositionForModelOffset(line.getBeginOffset()));
+                }
                 result.endVisualOffset = Math.max(result.endVisualOffset, lastOfs);
             }
         }

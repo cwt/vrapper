@@ -3,6 +3,7 @@ package net.sourceforge.vrapper.vim.commands;
 import net.sourceforge.vrapper.platform.CursorService;
 import net.sourceforge.vrapper.platform.HistoryService;
 import net.sourceforge.vrapper.platform.TextContent;
+import net.sourceforge.vrapper.utils.BlockWiseSelectionArea;
 import net.sourceforge.vrapper.utils.ContentType;
 import net.sourceforge.vrapper.utils.LineInformation;
 import net.sourceforge.vrapper.utils.Position;
@@ -80,8 +81,9 @@ public class SelectionBasedTextOperationCommand extends CountAwareCommand {
             if (legal) {
                 final TextObject blockSelection = registerManager.getLastActiveSelectionArea();
                 final TextRange blockRange = blockSelection.getRegion(editorAdaptor, NO_COUNT_GIVEN);
-                final TextBlock textBlock = BlockWiseSelection.getTextBlock( blockRange.getStart(), blockRange.getEnd(),
-                        editorAdaptor.getModelContent(), editorAdaptor.getCursorService());
+                final boolean stickToEOL = isUntilEOL(blockSelection);
+                final TextBlock textBlock = BlockWiseSelection.getTextBlock(blockRange.getStart(), blockRange.getEnd(),
+                        editorAdaptor.getModelContent(), editorAdaptor.getCursorService(), stickToEOL);
 
                 doIt(editorAdaptor, command, getCount(), textBlock);
                 registerManager.getActiveRegister().setContent(yankContent);
@@ -109,14 +111,10 @@ public class SelectionBasedTextOperationCommand extends CountAwareCommand {
             }
             final int endLine = Math.min(block.endLine, textContent.getNumberOfLines() - 1);
             for (int line = block.startLine + 1; line <= endLine; ++line) {
-                final Position runStart = cursorService.getPositionByVisualOffset(line, block.startVisualOffset);
-                Position runEnd = cursorService.getPositionByVisualOffset(line, block.endVisualOffset);
                 final LineInformation lineInfo = textContent.getLineInformation(line);
-                if (runEnd == null || lineInfo.getLength() == 0) {
-                    runEnd = cursorService.newPositionForModelOffset(lineInfo.getEndOffset());
-                } else {
-                    runEnd = runEnd.addModelOffset(1);
-                }
+                final Position runStart = BlockWiseSelection.getPositionOrEOLByVisualOffset(
+                        cursorService, lineInfo, block.startVisualOffset);
+                final Position runEnd = resolveLineRunEnd(cursorService, lineInfo, block.endVisualOffset);
                 if (runStart != null) {
                     editorAdaptor.setPosition(runStart, StickyColumnPolicy.NEVER);
                     final TextObject nextLine = new DummyTextObject(new StartEndTextRange(runStart, runEnd));
@@ -185,26 +183,45 @@ public class SelectionBasedTextOperationCommand extends CountAwareCommand {
         }
     }
 
+    private static Position resolveLineRunEnd(final CursorService cursorService,
+            final LineInformation lineInfo, final int endVisualOffset) {
+        final Position runEnd = cursorService.getPositionByVisualOffset(lineInfo.getNumber(), endVisualOffset);
+        if (runEnd == null || lineInfo.getLength() == 0) {
+            return cursorService.newPositionForModelOffset(lineInfo.getEndOffset());
+        }
+        return cursorService.newPositionForModelOffset(
+                Math.min(runEnd.getModelOffset() + 1, lineInfo.getEndOffset()));
+    }
+
+    private static boolean isUntilEOL(final TextObject blockSelection) {
+        return blockSelection instanceof BlockWiseSelectionArea
+                && ((BlockWiseSelectionArea) blockSelection).isUntilEOL();
+    }
+
     static public void doIt(final EditorAdaptor editorAdaptor,
             final int count, TextOperation command,
             final TextContent textContent, final TextRange blockRange,
             boolean changeMode) throws CommandExecutionException {
+        doIt(editorAdaptor, count, command, textContent, blockRange, changeMode,
+                editorAdaptor.getCursorService().shouldStickToEOL());
+    }
+
+    static public void doIt(final EditorAdaptor editorAdaptor,
+            final int count, TextOperation command,
+            final TextContent textContent, final TextRange blockRange,
+            boolean changeMode, boolean stickToEOL) throws CommandExecutionException {
         
         final CursorService cursorService = editorAdaptor.getCursorService();
         final TextBlock textBlock = BlockWiseSelection.getTextBlock(blockRange.getStart(), blockRange.getEnd(),
-                editorAdaptor.getModelContent(), cursorService);
-        Position runStart = cursorService.getPositionByVisualOffset(textBlock.startLine, textBlock.startVisualOffset);
+                editorAdaptor.getModelContent(), cursorService, stickToEOL);
         final LineInformation lineInfo = textContent.getLineInformation(textBlock.startLine);
+        Position runStart = BlockWiseSelection.getPositionOrEOLByVisualOffset(
+                cursorService, lineInfo, textBlock.startVisualOffset);
         if (runStart == null) {
-            // Empty line?
+            // Empty or shorter first line fallback
             runStart = cursorService.newPositionForModelOffset(lineInfo.getBeginOffset());
         }
-        Position runEnd = cursorService.getPositionByVisualOffset(textBlock.startLine, textBlock.endVisualOffset);
-        if (runEnd == null) {
-            runEnd = cursorService.newPositionForModelOffset(lineInfo.getEndOffset());
-        } else {
-            runEnd = runEnd.addModelOffset(1);
-        }
+        final Position runEnd = resolveLineRunEnd(cursorService, lineInfo, textBlock.endVisualOffset);
         final TextObject firstLine = new DummyTextObject(new StartEndTextRange(runStart, runEnd));
 
         final HistoryService history = editorAdaptor.getHistory();
@@ -217,6 +234,7 @@ public class SelectionBasedTextOperationCommand extends CountAwareCommand {
             history.beginCompoundChange();
             history.lock("block-action");
 
+            editorAdaptor.setPosition(runStart, StickyColumnPolicy.NEVER);
             command.execute(editorAdaptor, count, firstLine);
 
             if (changeMode) {
@@ -267,7 +285,7 @@ public class SelectionBasedTextOperationCommand extends CountAwareCommand {
                 if (lastSelection.getContentType(editorAdaptor.getConfiguration()) == ContentType.TEXT_RECTANGLE) {
                     final TextContent modelContent = editorAdaptor.getModelContent();
                     final TextRange region = lastSelection.getRegion(editorAdaptor, count);
-                    doIt(editorAdaptor, count, repetition, modelContent, region, true);
+                    doIt(editorAdaptor, count, repetition, modelContent, region, true, isUntilEOL(lastSelection));
                 } else {
                     repetition.execute(editorAdaptor, count, lastSelection);
                 }

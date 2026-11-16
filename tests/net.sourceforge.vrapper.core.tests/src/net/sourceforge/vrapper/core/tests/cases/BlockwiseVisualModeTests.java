@@ -10,6 +10,8 @@ import static org.mockito.Mockito.verify;
 
 import org.junit.Test;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import net.sourceforge.vrapper.platform.CursorService;
 import net.sourceforge.vrapper.platform.SelectionService;
@@ -489,5 +491,96 @@ public class BlockwiseVisualModeTests extends CommandTestCase {
 		assertEquals(BlockwiseVisualMode.NAME, adaptor.getCurrentModeName());
 		type(parseKeyStrokes("d"));
 		assertEquals("{}", content.getText());
+	}
+
+	@Test
+	public void test_shorterAndEmptyLinesWithDollarAndChange() {
+		// #663 / Bug 9: lines ending right at block start column participate in c / I,
+		// while strictly shorter lines do not.
+		content.setText(
+				"0123456789abc\n"
+				+ "0123456789");
+		adaptor.changeModeSafely(NormalMode.NAME);
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(10), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("<C-v>j$cXXX<Esc>"));
+		assertEquals("0123456789XXX\n0123456789XXX", content.getText());
+
+		content.setText(
+				"0123456789abc\n"
+				+ "0123456789\n"
+				+ "012345678\n"
+				+ "0123456789abc");
+		adaptor.changeModeSafely(NormalMode.NAME);
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(10), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("<C-v>3j$cXXX<Esc>"));
+		assertEquals(
+				"0123456789XXX\n"
+				+ "0123456789XXX\n"
+				+ "012345678\n"
+				+ "0123456789XXX",
+				content.getText());
+
+		final Position[] lastChangeStart = new Position[1];
+		Mockito.doAnswer(new Answer<Void>() {
+			@Override
+			public Void answer(InvocationOnMock invocation) {
+				lastChangeStart[0] = (Position) invocation.getArguments()[1];
+				return null;
+			}
+		}).when(cursorAndSelection).setMark(
+				Mockito.eq(CursorService.LAST_CHANGE_START), Mockito.any(Position.class));
+		Mockito.when(cursorAndSelection.getMark(CursorService.LAST_CHANGE_START))
+				.thenAnswer(new Answer<Position>() {
+					@Override
+					public Position answer(InvocationOnMock invocation) {
+						return lastChangeStart[0];
+					}
+				});
+
+		content.setText(
+				"0123456789abc\n"
+				+ "0123456789\n"
+				+ "0123456789abc");
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(10), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("2j<C-v>2kIXXX<Esc>"));
+		assertEquals(
+				"0123456789XXXabc\n"
+				+ "0123456789XXX\n"
+				+ "0123456789XXXabc",
+				content.getText());
+
+		// Empty line inside a $ block must not underflow onto the previous (out-of-block) line.
+		content.setText(
+				"very long preceding line\n"
+				+ "\n"
+				+ "ab");
+		final int emptyLineOffset = "very long preceding line\n".length();
+		final int endOffset = content.getText().length() - 1;
+		cursorAndSelection.setPosition(
+				cursorAndSelection.newPositionForModelOffset(endOffset),
+				StickyColumnPolicy.TO_EOL);
+		final BlockWiseSelection.TextBlock block = BlockWiseSelection.getTextBlock(
+				cursorAndSelection.newPositionForModelOffset(emptyLineOffset),
+				cursorAndSelection.newPositionForModelOffset(endOffset),
+				content, cursorAndSelection);
+		assertEquals(1, block.startLine);
+		assertEquals(2, block.endLine);
+		assertEquals(1, block.endVisualOffset);
+
+		// Blockwise d and c across empty lines do not eat newlines.
+		content.setText("\n");
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(0), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("<C-v>jd"));
+		assertEquals("\n", content.getText());
+
+		content.setText("\n0123456789\nfoo");
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(0), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("<C-v>2j$cXXX<Esc>"));
+		assertEquals("XXX\nXXX\nXXX", content.getText());
+
+		content.setText("a\n\nb");
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(0), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("<C-v>2j$cXXX<Esc>"));
+		assertEquals("XXX\nXXX\nXXX", content.getText());
 	}
 }
