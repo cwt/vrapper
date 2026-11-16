@@ -64,18 +64,18 @@ public class SubwordMotion extends CountAwareMotion {
 
         for (int i = 0; i < count; i++) {
             positionOrig = toOffset;
-        	toOffset = doIt(editorAdaptor, fromPosition, toOffset);
+        	toOffset = doIt(editorAdaptor, toOffset);
 
         	if(limit == Limit.END && toOffset == positionOrig && toOffset < editorAdaptor.getModelContent().getTextLength()) {
         	    //if we matched on our self, increase and try again
-        	    toOffset = doIt(editorAdaptor, fromPosition, ++toOffset);
+        	    toOffset = doIt(editorAdaptor, ++toOffset);
         	}
         }
 
         return editorAdaptor.getCursorService().newPositionForModelOffset(toOffset);
     }
     
-    private int doIt(EditorAdaptor editorAdaptor, Position fromPosition, int toOffset) throws CommandExecutionException {
+    private int doIt(EditorAdaptor editorAdaptor, int toOffset) throws CommandExecutionException {
         TextContent model = editorAdaptor.getModelContent();
         Position cursor = editorAdaptor.getCursorService().newPositionForModelOffset(toOffset);
 
@@ -93,7 +93,7 @@ public class SubwordMotion extends CountAwareMotion {
             break;
         }
         //find where the regular word motion would take us
-        Position dest = wordMotion.destination(editorAdaptor, fromPosition);
+        Position dest = wordMotion.destination(editorAdaptor, cursor);
         
         //StartEndTextRange can handle cursor < dest
         //I just use getLeftBound() when returning so I don't have to check which is bigger
@@ -175,11 +175,17 @@ public class SubwordMotion extends CountAwareMotion {
             String wordRegex = editorAdaptor.getConfiguration().get(Options.KEYWORDS);
             Position fromPosition = editorAdaptor.getPosition();
             int cursorOffset = fromPosition.getModelOffset();
+            int textLength = model.getTextLength();
+            if (cursorOffset >= textLength) {
+                return new StartEndTextRange(fromPosition, fromPosition);
+            }
 
             // VIM-camelcasemotion plugin is able to move [count]subwords backwards.
             // This feature is not yet supported by this implementation.
             int startOffset;
-            String startChars = cursorOffset > 0 ? model.getText(cursorOffset -1, 2) : "";
+            String startChars = (cursorOffset > 0 && cursorOffset < textLength)
+                    ? model.getText(cursorOffset - 1, 2)
+                    : "";
             if (startChars.length() == 2
                     && Utils.characterType(startChars.charAt(0), wordRegex) != Utils.WORD
                     && Utils.characterType(startChars.charAt(1), wordRegex) == Utils.WORD) {
@@ -190,7 +196,8 @@ public class SubwordMotion extends CountAwareMotion {
             else {
                 //offset+1 to include the character under the cursor
                 //(this operation will search backwards)
-                startOffset = ((SubwordMotion)startMotion).doIt(editorAdaptor, fromPosition, cursorOffset + 1);
+                startOffset = ((SubwordMotion)startMotion).doIt(
+                        editorAdaptor, Math.min(cursorOffset + 1, textLength));
             }
             Position start = cursorService.newPositionForModelOffset(startOffset);
 			int endOffset = cursorOffset;
@@ -204,9 +211,9 @@ public class SubwordMotion extends CountAwareMotion {
 			for (int i = count; i != 0; i--) {
 			    //using doIt rather than destination so we don't try "fixing" when we match on self
 			    if (i > 1) {
-			        endOffset = ((SubwordMotion)endMotion).doIt(editorAdaptor, fromPosition, endOffset);
+			        endOffset = ((SubwordMotion)endMotion).doIt(editorAdaptor, endOffset);
 			    } else {
-			        endOffset = ((SubwordMotion)lastEndMotion).doIt(editorAdaptor, fromPosition, endOffset);
+			        endOffset = ((SubwordMotion)lastEndMotion).doIt(editorAdaptor, endOffset);
 			    }
 			    if (endOffset > endWordOffset) {
 			        endOffset = endWordOffset;
@@ -217,7 +224,7 @@ public class SubwordMotion extends CountAwareMotion {
 
 			Position end = cursorService.newPositionForModelOffset(endOffset);
 			
-			if(! outer || hitEndOfTheWord) {
+			if ((!outer || hitEndOfTheWord) && end.getModelOffset() < textLength) {
 			    //inclusive vs. exclusive in motion vs. text object
 			    //motion is exclusive, inner text object is inclusive
 			    end = end.addModelOffset(1);

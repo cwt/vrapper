@@ -102,3 +102,10 @@ Recorded for the [bug tracker](index.md). Re-run `mvn clean verify` after fixing
    - **Result:** `BUILD SUCCESS` in `14.154 s` across all 41 reactor modules.
    - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 322, Failures: 0, Errors: 0, Skipped: 2` (includes `BlockwiseVisualModeTests.test_shorterAndEmptyLinesWithDollarAndChange` and updated `TestCursorAndSelection.getPositionByVisualOffset` bounds contract).
    - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
+
+## Post-fix run — Bug 10 (`2026-11-16`)
+
+1. **`mvn -B clean verify --file pom.xml`:**
+   - **Result:** `BUILD SUCCESS` in `14.191 s` across all 41 reactor modules (including `[bundle] Vrapper subwordtextobj Plug-in Core`).
+   - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 322, Failures: 0, Errors: 0, Skipped: 2`.
+   - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
