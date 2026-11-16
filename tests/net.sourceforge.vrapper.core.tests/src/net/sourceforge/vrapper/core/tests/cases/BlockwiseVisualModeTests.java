@@ -2,6 +2,7 @@ package net.sourceforge.vrapper.core.tests.cases;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static net.sourceforge.vrapper.keymap.vim.ConstructorWrappers.parseKeyStrokes;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.times;
@@ -465,5 +466,28 @@ public class BlockwiseVisualModeTests extends CommandTestCase {
 		executeCommand(forKeySeq("3<"));
 		assertCommandResult(initial,
 				"\t aha  \t\t ", 'p', "atterna baz4");
+	}
+
+	@Test
+	public void test_textObjectsPreserveBlockwiseMode() {
+		// Entering blockwise mode and selecting iw keeps BlockwiseVisualMode (#858 / Bug 8).
+		content.setText(
+				"aa bbb cc\n"
+				+ "dd eee ff");
+		adaptor.changeModeSafely(NormalMode.NAME);
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(4), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("<C-v>iw"));
+		assertEquals(BlockwiseVisualMode.NAME, adaptor.getCurrentModeName());
+		type(parseKeyStrokes("jd"));
+		assertEquals(NormalMode.NAME, adaptor.getCurrentModeName());
+		assertEquals("aa  cc\ndd  ff", content.getText());
+
+		// Chaining delimited text objects stays in BlockwiseVisualMode and expands outward.
+		content.setText("{ x { y } z }");
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(6), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("<C-v>i{i{"));
+		assertEquals(BlockwiseVisualMode.NAME, adaptor.getCurrentModeName());
+		type(parseKeyStrokes("d"));
+		assertEquals("{}", content.getText());
 	}
 }

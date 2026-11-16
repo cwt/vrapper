@@ -31,9 +31,9 @@ Source-level and build/test audit findings for the `vrapper` JDK 25 modernizatio
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
 | HIGH | 0 | 6 | 6 |
-| MEDIUM | 4 | 2 | 6 |
+| MEDIUM | 3 | 3 | 6 |
 | LOW | 1 | 0 | 1 |
-| **Total** | **5** | **8** | **13** |
+| **Total** | **4** | **9** | **13** |
 
 ## All Bugs
 
@@ -46,7 +46,7 @@ Source-level and build/test audit findings for the `vrapper` JDK 25 modernizatio
 | [5](005.md) | `EclipseCursorAndSelection.getPositionByVisualOffset()` overflow, `/ 0`, and infinite-loop hazards | HIGH | — | Fixed |
 | [6](006.md) | `SubstitutionDefinition` fails on regex-metacharacter delimiters | MEDIUM | — | Fixed |
 | [7](007.md) | Nested `if`/`endif`, `func`/`endfunc`, and `try`/`endtry` fail in `.vrapperrc`/`.vimrc` | MEDIUM | [#878](https://github.com/vrapper/vrapper/issues/878) | Fixed |
-| [8](008.md) | `SelectTextObjectCommand` exits `BlockwiseVisualMode` into `VisualMode` | MEDIUM | [#858](https://github.com/vrapper/vrapper/issues/858) | Open |
+| [8](008.md) | `SelectTextObjectCommand` exits `BlockwiseVisualMode` into `VisualMode` | MEDIUM | [#858](https://github.com/vrapper/vrapper/issues/858) | Fixed |
 | [9](009.md) | `BlockwiseVisualMode` skips shorter lines on change and mishandles empty lines with `$` | MEDIUM | [#663](https://github.com/vrapper/vrapper/issues/663) | Open |
 | [10](010.md) | `SubwordMotion` uses stale `fromPosition` on multi-step calls and throws on EOF | MEDIUM | [#854](https://github.com/vrapper/vrapper/issues/854) | Open |
 | [11](011.md) | Listener and `WeakHashMap` reference leaks on editor close and `MultiPageEditorPart` | MEDIUM | — | Open |

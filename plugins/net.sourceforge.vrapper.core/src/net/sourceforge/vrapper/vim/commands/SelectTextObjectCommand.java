@@ -26,9 +26,15 @@ public class SelectTextObjectCommand extends CountAwareCommand {
         //it probably means we're chaining i{i{, keep increasing count
         //until we expand into next the region
         int orgCount = count;
+        int oldRightOffset = oldSelection.getRightBound().getModelOffset();
+        if (oldSelection instanceof BlockWiseSelection && oldSelection.getModelLength() > 0) {
+            // BlockWiseSelection stores an exclusive range [from, to], so its selected right column
+            // ends one offset past getRightBound().
+            oldRightOffset++;
+        }
         while(textObject instanceof DelimitedTextObject
                 && oldSelection.getLeftBound().getModelOffset() <= region.getLeftBound().getModelOffset()
-                && oldSelection.getRightBound().getModelOffset() >= region.getRightBound().getModelOffset()) {
+                && oldRightOffset >= region.getRightBound().getModelOffset()) {
             // TextObject might not use count, abort after a while to prevent an endless loop.
             // FIXME: See if we can do this chaining functionality without looping over count. 
             if (count > orgCount + 10) {
@@ -68,9 +74,18 @@ public class SelectTextObjectCommand extends CountAwareCommand {
             break;
         case TEXT:
             String selectionOption = editorAdaptor.getConfiguration().get(Options.SELECTION);
-            boolean isInclusive = Selection.INCLUSIVE.equals(selectionOption);
-            selection = new SimpleSelection(editorAdaptor.getCursorService(), isInclusive, region);
-            newMode = VisualMode.NAME;
+            boolean isBlockwise = BlockwiseVisualMode.NAME.equals(editorAdaptor.getCurrentModeName());
+            boolean isInclusive = isBlockwise || Selection.INCLUSIVE.equals(selectionOption);
+            SimpleSelection textSelection = new SimpleSelection(
+                    editorAdaptor.getCursorService(), isInclusive, region);
+            if (isBlockwise) {
+                selection = new BlockWiseSelection(
+                        editorAdaptor, textSelection.getFrom(), textSelection.getTo());
+                newMode = BlockwiseVisualMode.NAME;
+            } else {
+                selection = textSelection;
+                newMode = VisualMode.NAME;
+            }
             break;
         default: throw new CommandExecutionException("WTF");
         }
