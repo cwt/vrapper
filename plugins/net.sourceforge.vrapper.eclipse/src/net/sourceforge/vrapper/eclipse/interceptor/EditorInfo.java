@@ -1,9 +1,10 @@
 package net.sourceforge.vrapper.eclipse.interceptor;
 
+import java.lang.ref.WeakReference;
 import java.util.Collections;
-import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 import net.sourceforge.vrapper.platform.VrapperPlatformException;
 
@@ -16,29 +17,29 @@ import org.eclipse.ui.IEditorPart;
  * information to prevent endless recursion when installing Vrapper into all the child editors. This
  * information is also necessary when switching between different child editors.
  * <p>
- * <b>Note</b>: this keeps hard references to Editors, instances of this class are not meant to be
- * stored over a long period of time unless the lifetime is tied to the editor parts themselves.
+ * Uses weak references to {@link IEditorPart} so values stored in {@link WeakHashMap} do not pin
+ * closed editors in memory.
  */
 public class EditorInfo {
 
-    protected Map<IEditorPart, EditorInfo> childEditors = new IdentityHashMap<IEditorPart, EditorInfo>();
+    protected Map<IEditorPart, EditorInfo> childEditors = new WeakHashMap<IEditorPart, EditorInfo>();
     protected EditorInfo parent;
-    protected IEditorPart current;
+    protected final WeakReference<IEditorPart> current;
 
     protected EditorInfo(IEditorPart current) {
-        this.current = current;
+        this.current = new WeakReference<IEditorPart>(current);
     }
 
     protected EditorInfo(EditorInfo parent, IEditorPart current) {
         this.parent = parent;
-        this.current = current;
+        this.current = new WeakReference<IEditorPart>(current);
     }
 
     /** Stores information about the child and returns the NestedEditorpartInfo for the child. */
     public EditorInfo createChildInfo(IEditorPart editorPart) {
         if (editorPart == null) {
             throw new VrapperPlatformException("Child editor cannot be null! Error while"
-                    + " traversing " + current);
+                    + " traversing " + getCurrent());
         }
         EditorInfo child = new EditorInfo(this, editorPart);
         this.childEditors.put(editorPart, child);
@@ -50,7 +51,7 @@ public class EditorInfo {
     }
 
     public void setChildEditors(Set<IEditorPart> childEditors) {
-        this.childEditors = new IdentityHashMap<IEditorPart, EditorInfo>();
+        this.childEditors = new WeakHashMap<IEditorPart, EditorInfo>();
         for (IEditorPart editor : childEditors) {
             this.childEditors.put(editor, new EditorInfo(editor));
         }
@@ -71,7 +72,7 @@ public class EditorInfo {
 
     public IEditorPart getTopLevelEditor() {
         if (parent == null) {
-            return current;
+            return getCurrent();
         } else {
             return parent.getTopLevelEditor();
         }
@@ -82,6 +83,11 @@ public class EditorInfo {
     }
 
     public IEditorPart getCurrent() {
-        return current;
+        return current.get();
+    }
+
+    public void dispose() {
+        current.clear();
+        childEditors.clear();
     }
 }

@@ -109,3 +109,11 @@ Recorded for the [bug tracker](index.md). Re-run `mvn clean verify` after fixing
    - **Result:** `BUILD SUCCESS` in `14.191 s` across all 41 reactor modules (including `[bundle] Vrapper subwordtextobj Plug-in Core`).
    - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 322, Failures: 0, Errors: 0, Skipped: 2`.
    - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
+
+## Post-fix run — Bug 11 (`2026-11-16`)
+
+1. **`mvn -B clean verify --file pom.xml`:**
+   - **Result:** `BUILD SUCCESS` in `14.278 s` across all 41 reactor modules (including `[bundle] Vrapper` / `net.sourceforge.vrapper.eclipse`).
+   - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 322, Failures: 0, Errors: 0, Skipped: 2`.
+   - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
+   - Note: `tests/` does not contain an Eclipse workbench / SWT UI test bundle; Eclipse listener teardown and weak-reference changes are verified by full reactor build and source inspection.

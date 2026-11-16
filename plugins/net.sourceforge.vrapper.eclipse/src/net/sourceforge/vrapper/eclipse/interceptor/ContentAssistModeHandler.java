@@ -11,29 +11,41 @@ import org.eclipse.jface.text.contentassist.ICompletionProposal;
 
 public class ContentAssistModeHandler implements ICompletionListener {
 
-    private final EditorAdaptor editorAdaptor;
+    private EditorAdaptor editorAdaptor;
 
     public ContentAssistModeHandler(final EditorAdaptor editorAdaptor) {
         this.editorAdaptor = editorAdaptor;
     }
 
+    public void dispose() {
+        this.editorAdaptor = null;
+    }
+
     @Override
     public void assistSessionStarted(ContentAssistEvent event) {
-        final String mode = editorAdaptor.getCurrentModeName();
+        final EditorAdaptor adaptor = editorAdaptor;
+        if (adaptor == null) {
+            return;
+        }
+        final String mode = adaptor.getCurrentModeName();
         //
         // Only switch from INSERT mode.
         //
         if (VrapperPlugin.isVrapperEnabled() && InsertMode.NAME.equals(mode)) {
-            editorAdaptor.changeModeSafely(ContentAssistMode.NAME,
+            adaptor.changeModeSafely(ContentAssistMode.NAME,
             		InsertMode.DONT_MOVE_CURSOR, InsertMode.RESUME_ON_MODE_ENTER);
         }
     }
 
     @Override
     public void assistSessionEnded(ContentAssistEvent event) {
-        final String mode = editorAdaptor.getCurrentModeName();
+        final EditorAdaptor adaptor = editorAdaptor;
+        if (adaptor == null) {
+            return;
+        }
+        final String mode = adaptor.getCurrentModeName();
         if (VrapperPlugin.isVrapperEnabled() && ContentAssistMode.NAME.equals(mode)) {
-            editorAdaptor.changeModeSafely(InsertMode.NAME,
+            adaptor.changeModeSafely(InsertMode.NAME,
             		InsertMode.DONT_MOVE_CURSOR, InsertMode.RESUME_ON_MODE_ENTER);
         }
     }

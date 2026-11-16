@@ -17,7 +17,9 @@ public class EclipseUserInterfaceService implements UserInterfaceService {
     private static final String CONTRIBUTION_ITEM_NAME = "VimInputMode";
 
     private final CommandLineUIFactory commandLineFactory;
-    private final IEditorPart editor;
+    private final java.lang.ref.WeakReference<IEditorPart> editorRef;
+    private final PartChangeListener partChangeListener = new PartChangeListener();
+    private final java.lang.ref.WeakReference<org.eclipse.ui.IPartService> partServiceRef;
     private final ModeContributionItem vimInputModeItem;
 
     private String lastInfoValue = "";
@@ -37,11 +39,33 @@ public class EclipseUserInterfaceService implements UserInterfaceService {
     private String currentModeName;
 
     public EclipseUserInterfaceService(final IEditorPart editor, final ITextViewer textViewer) {
-        this.editor = editor;
+        this.editorRef = new java.lang.ref.WeakReference<IEditorPart>(editor);
         commandLineFactory = new CommandLineUIFactory(textViewer.getTextWidget());
         vimInputModeItem = getContributionItem();
         setEditorMode(VRAPPER_DISABLED);
-        editor.getSite().getWorkbenchWindow().getPartService().addPartListener(new PartChangeListener());
+        final org.eclipse.ui.IWorkbenchPartSite site = editor.getSite();
+        final org.eclipse.ui.IWorkbenchWindow window = site != null ? site.getWorkbenchWindow() : null;
+        final org.eclipse.ui.IPartService partService = window != null ? window.getPartService() : null;
+        this.partServiceRef = new java.lang.ref.WeakReference<org.eclipse.ui.IPartService>(partService);
+        if (partService != null) {
+            partService.addPartListener(partChangeListener);
+        }
+    }
+
+    private IEditorPart getEditor() {
+        return editorRef.get();
+    }
+
+    /**
+     * Unregisters workbench part listeners attached for this editor UI service.
+     */
+    public void dispose() {
+        final org.eclipse.ui.IPartService partService = partServiceRef.get();
+        if (partService != null) {
+            partService.removePartListener(partChangeListener);
+            partServiceRef.clear();
+        }
+        editorRef.clear();
     }
 
     @Override
@@ -74,7 +98,10 @@ public class EclipseUserInterfaceService implements UserInterfaceService {
 
     @Override
     public void setErrorMessage(final String content) {
-        editor.getEditorSite().getActionBars().getStatusLineManager().setErrorMessage(content);
+        final IEditorPart editor = getEditor();
+        if (editor != null) {
+            editor.getEditorSite().getActionBars().getStatusLineManager().setErrorMessage(content);
+        }
         lastErrorValue = content;
     }
 
@@ -85,7 +112,10 @@ public class EclipseUserInterfaceService implements UserInterfaceService {
 
     @Override
     public void setInfoMessage(final String content) {
-        editor.getEditorSite().getActionBars().getStatusLineManager().setMessage(content);
+        final IEditorPart editor = getEditor();
+        if (editor != null) {
+            editor.getEditorSite().getActionBars().getStatusLineManager().setMessage(content);
+        }
         lastInfoValue = content;
     }
 
@@ -95,6 +125,7 @@ public class EclipseUserInterfaceService implements UserInterfaceService {
     }
 
     private ModeContributionItem getContributionItem() {
+        final IEditorPart editor = getEditor();
         final String name = CONTRIBUTION_ITEM_NAME + editor.getEditorSite().getId();
         final IStatusLineManager manager = editor.getEditorSite().getActionBars().getStatusLineManager();
         ModeContributionItem item = (ModeContributionItem) manager.find(name);
@@ -115,7 +146,8 @@ public class EclipseUserInterfaceService implements UserInterfaceService {
 
         @Override
         public void partActivated(final IWorkbenchPart arg0) {
-            if (arg0 == editor) {
+            final IEditorPart editor = getEditor();
+            if (editor != null && arg0 == editor) {
                 setEditorMode(currentModeName);
             }
         }
@@ -125,8 +157,9 @@ public class EclipseUserInterfaceService implements UserInterfaceService {
 
         @Override
         public void partClosed(final IWorkbenchPart arg0) {
-            if (arg0 == editor) {
-                editor.getSite().getWorkbenchWindow().getPartService().removePartListener(this);
+            final IEditorPart editor = getEditor();
+            if (editor == null || arg0 == editor) {
+                dispose();
             }
         }
 

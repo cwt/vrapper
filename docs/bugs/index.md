@@ -31,9 +31,9 @@ Source-level and build/test audit findings for the `vrapper` JDK 25 modernizatio
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
 | HIGH | 0 | 6 | 6 |
-| MEDIUM | 1 | 5 | 6 |
+| MEDIUM | 0 | 6 | 6 |
 | LOW | 1 | 0 | 1 |
-| **Total** | **2** | **11** | **13** |
+| **Total** | **1** | **12** | **13** |
 
 ## All Bugs
 
@@ -49,6 +49,6 @@ Source-level and build/test audit findings for the `vrapper` JDK 25 modernizatio
 | [8](008.md) | `SelectTextObjectCommand` exits `BlockwiseVisualMode` into `VisualMode` | MEDIUM | [#858](https://github.com/vrapper/vrapper/issues/858) | Fixed |
 | [9](009.md) | `BlockwiseVisualMode` skips shorter lines on change and mishandles empty lines with `$` | MEDIUM | [#663](https://github.com/vrapper/vrapper/issues/663) | Fixed |
 | [10](010.md) | `SubwordMotion` uses stale `fromPosition` on multi-step calls and throws on EOF | MEDIUM | [#854](https://github.com/vrapper/vrapper/issues/854) | Fixed |
-| [11](011.md) | Listener and `WeakHashMap` reference leaks on editor close and `MultiPageEditorPart` | MEDIUM | — | Open |
+| [11](011.md) | Listener and `WeakHashMap` reference leaks on editor close and `MultiPageEditorPart` | MEDIUM | — | Fixed |
 | [12](012.md) | Missing null checks in `EclipsePlatform` undo wrapper and `CLabel.shortenText` | LOW | [#828](https://github.com/vrapper/vrapper/issues/828) | Open |
 | [13](013.md) | Core unit tests fail on JDK 25 due to ByteBuddy `1.14.11` / Mockito `5.10.0` target dependency | HIGH | — | Fixed |

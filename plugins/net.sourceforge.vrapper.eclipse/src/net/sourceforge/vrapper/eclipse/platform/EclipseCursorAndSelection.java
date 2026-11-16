@@ -125,16 +125,22 @@ public class EclipseCursorAndSelection implements CursorService, SelectionServic
 
     public void uninstallHooks() {
         try {
-            textViewer.getTextWidget().removeSelectionListener(selectionChangeListener);
-            textViewer.getTextWidget().removeCaretListener(caretListener);
-            textViewer.getTextWidget().removePaintListener(visualCaretPainter);
-            textViewer.getSelectionProvider().removeSelectionChangedListener(selectionChangeListener);
+            final StyledText textWidget = textViewer.getTextWidget();
+            if (textWidget != null && !textWidget.isDisposed()) {
+                textWidget.removeSelectionListener(selectionChangeListener);
+                textWidget.removeCaretListener(caretListener);
+                textWidget.removePaintListener(visualCaretPainter);
+            }
+            if (textViewer.getSelectionProvider() != null) {
+                textViewer.getSelectionProvider().removeSelectionChangedListener(selectionChangeListener);
+            }
 
             // This extra check is necessary because the document we're operating on might be a
             // different one from the one the textViewer contained during installHooks() invocation.
             // This document swapping happens if the editor input changed, and we're only triggered
             // *after* the textViewer changed its document instance.
-            if (textViewer.getDocument().containsPositionCategory(POSITION_CATEGORY_NAME)) {
+            if (textViewer.getDocument() != null
+                    && textViewer.getDocument().containsPositionCategory(POSITION_CATEGORY_NAME)) {
                 textViewer.getDocument().removePositionCategory(POSITION_CATEGORY_NAME);
             }
         } catch (RuntimeException e) {

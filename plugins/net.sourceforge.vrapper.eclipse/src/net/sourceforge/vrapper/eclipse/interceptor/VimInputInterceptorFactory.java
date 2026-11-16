@@ -276,7 +276,9 @@ public class VimInputInterceptorFactory implements InputInterceptorFactory {
                 final SourceViewer sourceViewer = (SourceViewer)textViewer;
                 final ContentAssistantFacade contentAssistant= sourceViewer.getContentAssistantFacade();
                 if (contentAssistant != null) {
-                    contentAssistant.addCompletionListener(new ContentAssistModeHandler(editorAdaptor));
+                    final ContentAssistModeHandler contentAssistHandler = new ContentAssistModeHandler(editorAdaptor);
+                    contentAssistant.addCompletionListener(contentAssistHandler);
+                    interceptor.setContentAssistModeHandler(contentAssistHandler);
                 }
             }
         }
@@ -293,9 +295,10 @@ public class VimInputInterceptorFactory implements InputInterceptorFactory {
 
     private static final class VimInputInterceptor implements InputInterceptor {
 
-        private final EditorAdaptor editorAdaptor;
+        private EditorAdaptor editorAdaptor;
         private EditorInfo editorInfo;
         private LinkedModeHandler linkedModeHandler;
+        private ContentAssistModeHandler contentAssistModeHandler;
         private CaretPositionHandler caretPositionHandler;
         private SelectionVisualHandler selectionVisualHandler;
         private CaretPositionUndoHandler caretPositionUndoHandler;
@@ -306,7 +309,7 @@ public class VimInputInterceptorFactory implements InputInterceptorFactory {
         }
 
         public void verifyKey(VerifyEvent event) {
-            if (!VrapperPlugin.isVrapperEnabled()) {
+            if (editorAdaptor == null || !VrapperPlugin.isVrapperEnabled()) {
                 return;
             }
             // Ignore event when modifier is held down before other key gets pressed
@@ -379,6 +382,16 @@ public class VimInputInterceptorFactory implements InputInterceptorFactory {
         }
 
         @Override
+        public ContentAssistModeHandler getContentAssistModeHandler() {
+            return contentAssistModeHandler;
+        }
+
+        @Override
+        public void setContentAssistModeHandler(ContentAssistModeHandler handler) {
+            this.contentAssistModeHandler = handler;
+        }
+
+        @Override
         public CaretPositionHandler getCaretPositionHandler() {
             return caretPositionHandler;
         }
@@ -416,6 +429,18 @@ public class VimInputInterceptorFactory implements InputInterceptorFactory {
         @Override
         public void setPlatform(EclipsePlatform platform) {
             eclipsePlatform = platform;
+        }
+
+        @Override
+        public void dispose() {
+            editorAdaptor = null;
+            editorInfo = null;
+            linkedModeHandler = null;
+            contentAssistModeHandler = null;
+            caretPositionHandler = null;
+            selectionVisualHandler = null;
+            caretPositionUndoHandler = null;
+            eclipsePlatform = null;
         }
     }
 }

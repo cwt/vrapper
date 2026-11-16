@@ -1,5 +1,6 @@
 package net.sourceforge.vrapper.eclipse.platform;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -57,7 +58,7 @@ public class EclipsePlatform implements Platform {
     private final DefaultKeyMapProvider keyMapProvider;
     private final UnderlyingEditorSettings underlyingEditorSettings;
     private final LocalConfiguration localConfiguration;
-    private final AbstractTextEditor underlyingEditor;
+    private final WeakReference<AbstractTextEditor> underlyingEditor;
     private final ISourceViewer underlyingSourceViewer;
     private final HighlightingService highlightingService;
     private final SearchAndReplaceService searchAndReplaceService;
@@ -71,7 +72,7 @@ public class EclipsePlatform implements Platform {
             ISourceViewer sourceViewer, GlobalConfiguration sharedConfiguration,
             BufferAndTabService bufferAndTabService) {
         vrapperModeRecorder = new VrapperModeRecorder();
-        underlyingEditor = abstractTextEditor;
+        underlyingEditor = new WeakReference<AbstractTextEditor>(abstractTextEditor);
         underlyingSourceViewer = sourceViewer;
         underlyingEditorSettings = new AbstractTextEditorSettings(abstractTextEditor, sourceViewer);
         List<DefaultConfigProvider> configProviders =
@@ -105,7 +106,12 @@ public class EclipsePlatform implements Platform {
     }
 
     public AbstractTextEditor getUnderlyingEditor() {
-        return underlyingEditor;
+        return underlyingEditor.get();
+    }
+
+    public void dispose() {
+        userInterfaceService.dispose();
+        underlyingEditor.clear();
     }
 
     public ISourceViewer getUnderlyingSourceViewer() {
@@ -180,9 +186,13 @@ public class EclipsePlatform implements Platform {
     @Override
     public PlatformSpecificStateProvider getPlatformSpecificStateProvider(
             TextObjectProvider textObjectProvider) {
-        final String className = underlyingEditor.getClass().getName();
+        final AbstractTextEditor editor = getUnderlyingEditor();
+        if (editor == null) {
+            return null;
+        }
+        final String className = editor.getClass().getName();
         if (!providerCache.containsKey(className)) {
-            providerCache.put(className, buildPlatformSpecificStateProvider(textObjectProvider));
+            providerCache.put(className, buildPlatformSpecificStateProvider(textObjectProvider, editor));
         }
         return providerCache.get(className);
     }
@@ -199,9 +209,13 @@ public class EclipsePlatform implements Platform {
 
     @Override
     public PlatformSpecificTextObjectProvider getPlatformSpecificTextObjectProvider() {
-        final String className = underlyingEditor.getClass().getName();
+        final AbstractTextEditor editor = getUnderlyingEditor();
+        if (editor == null) {
+            return null;
+        }
+        final String className = editor.getClass().getName();
         if (!textObjProviderCache.containsKey(className)) {
-            textObjProviderCache.put(className, buildPlatformSpecificTextObjectProvider());
+            textObjProviderCache.put(className, buildPlatformSpecificTextObjectProvider(editor));
         }
         return textObjProviderCache.get(className);
     }
@@ -212,7 +226,7 @@ public class EclipsePlatform implements Platform {
     }
 
     private PlatformSpecificStateProvider buildPlatformSpecificStateProvider(
-            TextObjectProvider textObjectProvider) {
+            TextObjectProvider textObjectProvider, AbstractTextEditor editor) {
         final IExtensionRegistry registry = org.eclipse.core.runtime.Platform
                 .getExtensionRegistry();
         final IConfigurationElement[] elements = registry
@@ -225,7 +239,7 @@ public class EclipsePlatform implements Platform {
             try {
                 final AbstractEclipseSpecificStateProvider provider = (AbstractEclipseSpecificStateProvider) Utils
                         .createGizmoForElementConditionally(
-                                underlyingEditor, "editor-must-subclass",
+                                editor, "editor-must-subclass",
                                 element, "provider-class");
                 if (provider != null) {
                     provider.configure(element);
@@ -242,7 +256,7 @@ public class EclipsePlatform implements Platform {
         }
         Collections.sort(matched);
         return new UnionStateProvider("extensions for "
-                + underlyingEditor.getClass().getName(), matched);
+                + editor.getClass().getName(), matched);
     }
 
     private PlatformSpecificModeProvider buildPlatformSpecificModeProvider() {
@@ -261,7 +275,8 @@ public class EclipsePlatform implements Platform {
         return new UnionModeProvider("Extension modes", matched);
     }
 
-    private PlatformSpecificTextObjectProvider buildPlatformSpecificTextObjectProvider() {
+    private PlatformSpecificTextObjectProvider buildPlatformSpecificTextObjectProvider(
+            AbstractTextEditor editor) {
         final IExtensionRegistry registry = org.eclipse.core.runtime.Platform
                 .getExtensionRegistry();
         final IConfigurationElement[] elements = registry
@@ -270,7 +285,7 @@ public class EclipsePlatform implements Platform {
         for (final IConfigurationElement element : elements) {
             final PlatformSpecificTextObjectProvider provider =
                     (PlatformSpecificTextObjectProvider) Utils.createGizmoForElementConditionally(
-                            underlyingEditor, "editor-must-subclass",
+                            editor, "editor-must-subclass",
                             element, "provider-class");
             if (provider != null) {
                 matched.add(provider);
@@ -279,16 +294,20 @@ public class EclipsePlatform implements Platform {
         // Priority code is not implemented. If it was, add a SortKey decorator.
         // Collections.sort(matched);
         return new UnionTextObjectProvider("extensions for "
-                + underlyingEditor.getClass().getName(), matched);
+                + editor.getClass().getName(), matched);
     }
 
     public String getEditorType() {
-    	IWorkbenchPartSite site = underlyingEditor.getSite();
+        final AbstractTextEditor editor = getUnderlyingEditor();
+        if (editor == null) {
+            return null;
+        }
+    	IWorkbenchPartSite site = editor.getSite();
     	if(site instanceof MultiPageEditorSite) {
     		site = ((MultiPageEditorSite)site).getMultiPageEditor().getSite();
     	}
 
-        return site.getRegisteredName();
+        return site != null ? site.getRegisteredName() : null;
     }
 
     @Override

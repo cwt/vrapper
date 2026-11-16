@@ -31,10 +31,10 @@ public class EclipseBufferAndTabService implements BufferAndTabService {
     protected WeakReference<IEditorPart> previousEditorReference;
     protected WeakReference<IEditorPart> currentEditorReference;
     protected BufferManager bufferIdManager;
-    protected IWorkbenchWindow workbenchWindow;
+    protected final WeakReference<IWorkbenchWindow> workbenchWindowReference;
     
     public EclipseBufferAndTabService(IWorkbenchWindow window, BufferManager bufferIdManager) {
-        this.workbenchWindow = window;
+        this.workbenchWindowReference = new WeakReference<IWorkbenchWindow>(window);
         this.bufferIdManager = bufferIdManager;
         previousEditorReference = new WeakReference<IEditorPart>(null);
         currentEditorReference = new WeakReference<IEditorPart>(null);
@@ -175,7 +175,8 @@ public class EclipseBufferAndTabService implements BufferAndTabService {
         if (previousEditor == null) {
             previousEditor = currentEditor;
         }
-        if (currentEditor == null || buffers.size() == 0) {
+        final IWorkbenchWindow workbenchWindow = workbenchWindowReference.get();
+        if (currentEditor == null || workbenchWindow == null || buffers.size() == 0) {
             return Collections.emptyList();
         }
         IEditorInput currentInput = currentEditor.getEditorInput();
@@ -201,7 +202,11 @@ public class EclipseBufferAndTabService implements BufferAndTabService {
      */
     @Override
     public List<Object> doInBuffers(boolean initialize, Queue<String> command, Evaluator code) throws BufferDoException {
-        if (initialize) {
+        final IWorkbenchWindow workbenchWindow = workbenchWindowReference.get();
+        if (workbenchWindow == null) {
+            return Collections.emptyList();
+        }
+        if (initialize && workbenchWindow.getActivePage() != null) {
             // NOTE: This is can be costly operation if you have 10+ files open from last session.
             // Since all editors will be initialized, all Vrapper instances will be in buffer list.
             IEditorReference[] references = workbenchWindow.getActivePage().getEditorReferences();

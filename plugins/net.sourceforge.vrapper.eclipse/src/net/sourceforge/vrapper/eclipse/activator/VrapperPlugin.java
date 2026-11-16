@@ -151,7 +151,11 @@ public class VrapperPlugin extends AbstractUIPlugin implements /*IStartup,*/ Log
             public void windowOpened(IWorkbenchWindow window) {
                 addInterceptingListener(window);
             }
-            public void windowClosed(IWorkbenchWindow window) { }
+            public void windowClosed(IWorkbenchWindow window) {
+                if (window != null && window.getPartService() != null) {
+                    window.getPartService().removePartListener(InputInterceptorManager.INSTANCE);
+                }
+            }
             public void windowActivated(IWorkbenchWindow window) { }
             public void windowDeactivated(IWorkbenchWindow window) { }
         });

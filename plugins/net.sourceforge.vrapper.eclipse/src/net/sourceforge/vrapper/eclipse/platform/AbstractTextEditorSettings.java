@@ -1,6 +1,7 @@
 package net.sourceforge.vrapper.eclipse.platform;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -26,15 +27,19 @@ import org.eclipse.ui.texteditor.AbstractTextEditor;
  */
 public class AbstractTextEditorSettings implements UnderlyingEditorSettings, DefaultConfigProvider {
 
-    private final AbstractTextEditor abstractTextEditor;
+    private final WeakReference<AbstractTextEditor> abstractTextEditorRef;
     private ISourceViewer sourceViewer;
 
     public AbstractTextEditorSettings(AbstractTextEditor abstractTextEditor, ISourceViewer sourceViewer) {
-        this.abstractTextEditor = abstractTextEditor;
+        this.abstractTextEditorRef = new WeakReference<AbstractTextEditor>(abstractTextEditor);
         this.sourceViewer = sourceViewer;
     }
 
     public void setReplaceMode(boolean replace) {
+        final AbstractTextEditor abstractTextEditor = abstractTextEditorRef.get();
+        if (abstractTextEditor == null) {
+            return;
+        }
         try {
             // AbstractTextEditor.enableOverwriteMode is broken - it works only for disabling overwrite mode %-/
             Method isInsertingMethod = AbstractTextEditor.class.getDeclaredMethod("isInInsertMode");
@@ -57,6 +62,10 @@ public class AbstractTextEditorSettings implements UnderlyingEditorSettings, Def
     }
     
     protected SourceViewerConfiguration getSourceViewerConfig() throws IOException {
+        final AbstractTextEditor abstractTextEditor = abstractTextEditorRef.get();
+        if (abstractTextEditor == null) {
+            throw new IOException("Editor reference cleared");
+        }
         // org.eclipse.ui.texteditor.AbstractTextEditor.getSourceViewerConfiguration()
         try {
             Method me = AbstractTextEditor.class.getDeclaredMethod("getSourceViewerConfiguration");

@@ -11,7 +11,7 @@ import org.eclipse.ui.part.FileEditorInput;
 
 public class BufferInfo {
     public final int bufferId;
-    public final IEditorReference reference;
+    protected final WeakReference<IEditorReference> reference;
     public String editorType;
     
     /**
@@ -55,22 +55,33 @@ public class BufferInfo {
         this.parentInput = null;
         this.input = null;
         this.editorType = pluginId;
-        this.reference = editorReference;
-        this.seenWindows.put(editorReference.getPage().getWorkbenchWindow(), null);
+        this.reference = editorReference != null ? new WeakReference<IEditorReference>(editorReference) : null;
+        if (editorReference != null && editorReference.getPage() != null) {
+            this.seenWindows.put(editorReference.getPage().getWorkbenchWindow(), null);
+        }
     }
 
     public String getDisplayName() {
     	final IEditorInput input = getInput();
+        final IEditorReference ref = getReference();
         if (input instanceof FileEditorInput) {
             FileEditorInput fileInput = (FileEditorInput) input;
             return fileInput.getFile().getFullPath().toFile().getPath();
         } else if (input != null) {
             return input.getName();
-        } else if (reference != null) {
-            return reference.getPartName();
+        } else if (ref != null) {
+            return ref.getPartName();
         } else {
             return "?";
         }
+    }
+
+    public IEditorReference getReference() {
+        return reference != null ? reference.get() : null;
+    }
+
+    public boolean hasReference() {
+        return reference != null;
     }
     
     public IEditorInput getInput() {

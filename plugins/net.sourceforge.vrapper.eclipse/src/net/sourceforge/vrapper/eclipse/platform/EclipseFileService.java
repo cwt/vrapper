@@ -2,6 +2,7 @@ package net.sourceforge.vrapper.eclipse.platform;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -37,12 +38,16 @@ import org.eclipse.ui.texteditor.AbstractTextEditor;
 
 public class EclipseFileService implements FileService {
 
-    private final AbstractTextEditor editor;
+    private final WeakReference<AbstractTextEditor> editorRef;
     private String lastFindPath;
     private String lastFindPrevious;
 
     public EclipseFileService(AbstractTextEditor editor) {
-        this.editor = editor;
+        this.editorRef = new WeakReference<AbstractTextEditor>(editor);
+    }
+
+    private AbstractTextEditor getEditor() {
+        return editorRef.get();
     }
     
     /**
@@ -51,6 +56,10 @@ public class EclipseFileService implements FileService {
      * in Vrapper.  As soon as you save and close gvim, the file will be reloaded.
      */
     public boolean openInGvim(String gvimpath, String gvimargs, int row, int col) throws IOException {
+        final AbstractTextEditor editor = getEditor();
+        if (editor == null) {
+            return false;
+        }
     	if(editor.isDirty()) {
     		editor.doSave(null);
     	}
@@ -98,16 +107,19 @@ public class EclipseFileService implements FileService {
     }
 
     public boolean isEditable() {
-        return editor.isEditable();
+        final AbstractTextEditor editor = getEditor();
+        return editor != null && editor.isEditable();
     }
     
     @Override
     public boolean checkModifiable() {
-        return editor.validateEditorInputState();
+        final AbstractTextEditor editor = getEditor();
+        return editor != null && editor.validateEditorInputState();
     }
 
     public boolean isReadOnly() {
-        return editor.isEditorInputReadOnly();
+        final AbstractTextEditor editor = getEditor();
+        return editor == null || editor.isEditorInputReadOnly();
     }
 
     private boolean runCommand(String commandId) {
@@ -130,6 +142,10 @@ public class EclipseFileService implements FileService {
     }
 
     public boolean close(boolean force) {
+        final AbstractTextEditor editor = getEditor();
+        if (editor == null) {
+            return false;
+        }
         if (force || !editor.isDirty()) {
 
         	final IWorkbenchPage workbenchPage = editor.getSite().getPage();
@@ -154,6 +170,10 @@ public class EclipseFileService implements FileService {
     }
     
     public boolean closeAll(boolean force) {
+        final AbstractTextEditor editor = getEditor();
+        if (editor == null) {
+            return false;
+        }
         boolean success = false;
     	IWorkbenchPage page = editor.getSite().getPage();
         if (force || page.getDirtyEditors().length == 0) {
@@ -166,7 +186,11 @@ public class EclipseFileService implements FileService {
     }
     
     public boolean closeOthers(boolean force) {
-        IWorkbenchPage page = editor.getSite().getPage();
+        final AbstractTextEditor thisEditor = getEditor();
+        if (thisEditor == null) {
+            return false;
+        }
+        IWorkbenchPage page = thisEditor.getSite().getPage();
         if(page.getEditorReferences().length < 2) {
             return true;
         }
@@ -190,7 +214,8 @@ public class EclipseFileService implements FileService {
     }
 
     public boolean save() {
-        if (editor.isDirty() && editor.isEditable()) {
+        final AbstractTextEditor editor = getEditor();
+        if (editor != null && editor.isDirty() && editor.isEditable()) {
         	//use the handler service so it sends all the right "save" events
         	//to any listeners (such as the AnyEdit plugin)
         	return runCommand(IWorkbenchCommandConstants.FILE_SAVE);

@@ -1,5 +1,6 @@
 package net.sourceforge.vrapper.eclipse.platform;
 
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,11 +19,11 @@ import org.eclipse.ui.texteditor.IDocumentProvider;
 
 public class EclipseHighlightingService implements HighlightingService {
 
-    private final AbstractTextEditor editor;
+    private final WeakReference<AbstractTextEditor> editorRef;
     private final CursorService cursorService;
 
     EclipseHighlightingService(AbstractTextEditor editor, CursorService cursorService) {
-        this.editor = editor;
+        this.editorRef = new WeakReference<AbstractTextEditor>(editor);
         this.cursorService = cursorService;
     }
 
@@ -111,7 +112,8 @@ public class EclipseHighlightingService implements HighlightingService {
     }
 
     private IAnnotationModel getAnnotationModel() {
-        IDocumentProvider doc = editor.getDocumentProvider();
+        final AbstractTextEditor editor = editorRef.get();
+        final IDocumentProvider doc = editor != null ? editor.getDocumentProvider() : null;
         return doc != null ? doc.getAnnotationModel(editor.getEditorInput()) : null;
     }
 

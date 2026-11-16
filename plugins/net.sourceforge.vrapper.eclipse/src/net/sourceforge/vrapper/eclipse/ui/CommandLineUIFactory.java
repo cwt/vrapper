@@ -98,6 +98,11 @@ public class CommandLineUIFactory {
                 commandLineText.dispose();
                 if (commandLineUI != null) {
                     commandLineUI.dispose();
+                    commandLineUI = null;
+                }
+                if (inputInterceptor != null) {
+                    inputInterceptor.dispose();
+                    inputInterceptor = null;
                 }
             }
         });

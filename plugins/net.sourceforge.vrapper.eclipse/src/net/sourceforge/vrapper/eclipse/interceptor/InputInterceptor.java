@@ -18,6 +18,9 @@ public interface InputInterceptor extends VerifyKeyListener {
 
     public LinkedModeHandler getLinkedModeHandler();
     public void setLinkedModeHandler(LinkedModeHandler handler);
+
+    public ContentAssistModeHandler getContentAssistModeHandler();
+    public void setContentAssistModeHandler(ContentAssistModeHandler handler);
     
     public CaretPositionHandler getCaretPositionHandler();
     public void setCaretPositionHandler(CaretPositionHandler handler);
@@ -30,4 +33,6 @@ public interface InputInterceptor extends VerifyKeyListener {
 
     public EclipsePlatform getPlatform();
     public void setPlatform(EclipsePlatform platform);
+
+    public void dispose();
 }

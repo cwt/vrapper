@@ -19,7 +19,9 @@ import org.eclipse.jface.dialogs.IPageChangedListener;
 import org.eclipse.jface.dialogs.PageChangedEvent;
 import org.eclipse.jface.text.ITextViewer;
 import org.eclipse.jface.text.ITextViewerExtension;
+import org.eclipse.jface.text.source.ContentAssistantFacade;
 import org.eclipse.jface.text.source.ISourceViewer;
+import org.eclipse.jface.text.source.SourceViewer;
 import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IEditorReference;
@@ -41,6 +43,7 @@ import net.sourceforge.vrapper.eclipse.activator.VrapperStatusSourceProvider;
 import net.sourceforge.vrapper.eclipse.extractor.EditorExtractor;
 import net.sourceforge.vrapper.eclipse.platform.EclipseBufferAndTabService;
 import net.sourceforge.vrapper.eclipse.platform.EclipseCursorAndSelection;
+import net.sourceforge.vrapper.eclipse.platform.EclipsePlatform;
 import net.sourceforge.vrapper.eclipse.utils.Utils;
 import net.sourceforge.vrapper.log.VrapperLog;
 import net.sourceforge.vrapper.platform.PlatformVrapperLifecycleListener;
@@ -246,8 +249,14 @@ public class InputInterceptorManager implements IPartListener2, IPageChangedList
     }
 
     public void partClosed(EditorInfo nestingInfo, ProcessedInfo processedInfo) {
-
+        if (nestingInfo == null) {
+            return;
+        }
         IEditorPart part = nestingInfo.getCurrent();
+        if (part == null) {
+            nestingInfo.dispose();
+            return;
+        }
         InputInterceptor interceptor = interceptors.remove(part);
         // remove the listener in case the editor gets cached
         if (interceptor != null) {
@@ -267,28 +276,67 @@ public class InputInterceptorManager implements IPartListener2, IPageChangedList
             } catch (Exception exception) {
                 VrapperLog.error("Exception while closing EditorAdaptor.", exception);
             }
+            final EclipsePlatform platform = interceptor.getPlatform();
+            final LinkedModeHandler linkedModeHandler = interceptor.getLinkedModeHandler();
+            final ContentAssistModeHandler contentAssistHandler = interceptor.getContentAssistModeHandler();
+            final CaretPositionUndoHandler caretPositionUndoHandler = interceptor.getCaretPositionUndoHandler();
             try {
-                Method me = AbstractTextEditor.class.getDeclaredMethod("getSourceViewer");
-                me.setAccessible(true);
-                Object viewer = me.invoke(part);
-                // test for needed interfaces
-                ITextViewer textViewer = (ITextViewer) viewer;
-                ITextViewerExtension textViewerExt = (ITextViewerExtension) viewer;
-                CaretPositionHandler caretPositionHandler = interceptor.getCaretPositionHandler();
-                CaretPositionUndoHandler caretPositionUndoHandler = interceptor.getCaretPositionUndoHandler();
-                SelectionVisualHandler visualHandler = interceptor.getSelectionVisualHandler();
-                EclipseCursorAndSelection selectionSvc = interceptor.getPlatform().getSelectionService();
+                Object viewer = null;
+                if (part instanceof AbstractTextEditor) {
+                    Method me = AbstractTextEditor.class.getDeclaredMethod("getSourceViewer");
+                    me.setAccessible(true);
+                    viewer = me.invoke(part);
+                }
+                if (viewer == null && platform != null) {
+                    viewer = platform.getUnderlyingSourceViewer();
+                }
+                if (viewer instanceof ITextViewer) {
+                    ITextViewer textViewer = (ITextViewer) viewer;
+                    CaretPositionHandler caretPositionHandler = interceptor.getCaretPositionHandler();
+                    SelectionVisualHandler visualHandler = interceptor.getSelectionVisualHandler();
 
-                textViewerExt.removeVerifyKeyListener(interceptor);
-                textViewer.getTextWidget().removeCaretListener(caretPositionHandler);
-                textViewer.getTextWidget().removeMouseListener(caretPositionHandler);
-                textViewer.getSelectionProvider().removeSelectionChangedListener(visualHandler);
-                IOperationHistory operationHistory = PlatformUI.getWorkbench().getOperationSupport().getOperationHistory();
-                operationHistory.removeOperationHistoryListener(caretPositionUndoHandler);
-                selectionSvc.uninstallHooks();
+                    if (viewer instanceof ITextViewerExtension) {
+                        ((ITextViewerExtension) viewer).removeVerifyKeyListener(interceptor);
+                    }
+                    if (textViewer.getTextWidget() != null && !textViewer.getTextWidget().isDisposed()
+                            && caretPositionHandler != null) {
+                        textViewer.getTextWidget().removeCaretListener(caretPositionHandler);
+                        textViewer.getTextWidget().removeMouseListener(caretPositionHandler);
+                    }
+                    if (visualHandler != null && textViewer.getSelectionProvider() != null) {
+                        textViewer.getSelectionProvider().removeSelectionChangedListener(visualHandler);
+                    }
+                    if (linkedModeHandler != null) {
+                        LinkedModeHandler.unregisterListener(textViewer.getDocument(), linkedModeHandler);
+                    }
+                    if (contentAssistHandler != null && viewer instanceof SourceViewer) {
+                        ContentAssistantFacade contentAssistant = ((SourceViewer) viewer).getContentAssistantFacade();
+                        if (contentAssistant != null) {
+                            contentAssistant.removeCompletionListener(contentAssistHandler);
+                        }
+                    }
+                }
+                if (platform != null && platform.getSelectionService() != null) {
+                    platform.getSelectionService().uninstallHooks();
+                }
             } catch (Exception exception) {
                 VrapperLog.error("Exception during closing IWorkbenchPart",
                         exception);
+            } finally {
+                if (linkedModeHandler != null) {
+                    LinkedModeHandler.unregisterListener(null, linkedModeHandler);
+                }
+                if (contentAssistHandler != null) {
+                    contentAssistHandler.dispose();
+                }
+                if (caretPositionUndoHandler != null && PlatformUI.isWorkbenchRunning()) {
+                    IOperationHistory operationHistory = PlatformUI.getWorkbench().getOperationSupport().getOperationHistory();
+                    operationHistory.removeOperationHistoryListener(caretPositionUndoHandler);
+                }
+                if (platform != null) {
+                    platform.dispose();
+                }
+                interceptor.dispose();
             }
         }
         if (part instanceof MultiPageEditorPart) {
@@ -314,14 +362,30 @@ public class InputInterceptorManager implements IPartListener2, IPageChangedList
                 if (subPart == null || processedInfo.isProcessed(subPart)) {
                     continue;
                 }
-                partClosed(nestingInfo.createChildInfo(subPart), processedInfo.markPart(subPart));
+                EditorInfo childInfo = nestingInfo.getChild(subPart);
+                if (childInfo == null && interceptors.containsKey(subPart)) {
+                    childInfo = nestingInfo.createChildInfo(subPart);
+                }
+                if (childInfo != null) {
+                    partClosed(childInfo, processedInfo.markPart(subPart));
+                }
             }
         }
+        for (EditorInfo childInfo : new ArrayList<EditorInfo>(nestingInfo.getChildEditors().values())) {
+            IEditorPart subPart = childInfo.getCurrent();
+            if (subPart != null && !processedInfo.isProcessed(subPart)) {
+                partClosed(childInfo, processedInfo.markPart(subPart));
+            }
+        }
+        nestingInfo.dispose();
     }
 
     public void partActivated(EditorInfo editorInfo, ProcessedInfo processedInfo) {
 
         IEditorPart part = editorInfo.getCurrent();
+        if (part == null) {
+            return;
+        }
         InputInterceptor input = interceptors.get(part);
 
         if (input == null) {
@@ -580,6 +644,9 @@ public class InputInterceptorManager implements IPartListener2, IPageChangedList
 
     public void registerEditorPart(EditorInfo editorInfo, boolean updateLastSeen) {
         IEditorPart editorPart = editorInfo.getCurrent();
+        if (editorPart == null) {
+            return;
+        }
         IEditorInput input = editorPart.getEditorInput();
 
         // Spotted in the wild, some child editors of a multi-page editor don't have an input.
@@ -651,15 +718,18 @@ public class InputInterceptorManager implements IPartListener2, IPageChangedList
     
     public void activate(BufferInfo buffer) {
         IWorkbenchPage page = PlatformUI.getWorkbench().getActiveWorkbenchWindow().getActivePage();
-        if (buffer.reference != null) {
-            IEditorPart editor = buffer.reference.getEditor(true);
+        final IEditorReference ref = buffer.getReference();
+        if (ref != null) {
+            IEditorPart editor = ref.getEditor(true);
             if (editor == null) {
                 throw new VrapperPlatformException("Failed to activate editor for reference "
-                        + buffer.reference);
+                        + ref);
             }
             // Open the reference in its own page, duplicating an unloaded reference is risky.
-            buffer.reference.getPage().activate(editor);
+            ref.getPage().activate(editor);
 
+        } else if (buffer.hasReference()) {
+            throw new VrapperPlatformException("Editor reference is no longer available");
         } else if (buffer.input != null && buffer.parentInput == null) {
             try {
                 page.openEditor(buffer.getInput(), buffer.editorType, true,
