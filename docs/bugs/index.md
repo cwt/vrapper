@@ -30,10 +30,10 @@ Source-level and build/test audit findings for the `vrapper` JDK 25 modernizatio
 
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
-| HIGH | 2 | 4 | 6 |
+| HIGH | 1 | 5 | 6 |
 | MEDIUM | 6 | 0 | 6 |
 | LOW | 1 | 0 | 1 |
-| **Total** | **9** | **4** | **13** |
+| **Total** | **8** | **5** | **13** |
 
 ## All Bugs
 
@@ -42,7 +42,7 @@ Source-level and build/test audit findings for the `vrapper` JDK 25 modernizatio
 | [1](001.md) | `CommandLineParser` splits `" \| "` command chains on every space | HIGH | — | Fixed |
 | [2](002.md) | `InsertMode` wipes `mOnLeaveHint`, `count`, and `repetitionCommand` on `RESUME_ON_MODE_ENTER` | HIGH | — | Fixed |
 | [3](003.md) | `s/\%V` substitution replaces outside visual-block columns on multi-line selections | HIGH | [#848](https://github.com/vrapper/vrapper/issues/848) | Fixed |
-| [4](004.md) | Pending `imap` buffer (`cursorBeforeMapping`) erases autocompleted or inserted text | HIGH | [#827](https://github.com/vrapper/vrapper/issues/827) / [#889](https://github.com/vrapper/vrapper/issues/889) | Open |
+| [4](004.md) | Pending `imap` buffer (`cursorBeforeMapping`) erases autocompleted or inserted text | HIGH | [#827](https://github.com/vrapper/vrapper/issues/827) / [#889](https://github.com/vrapper/vrapper/issues/889) | Fixed |
 | [5](005.md) | `EclipseCursorAndSelection.getPositionByVisualOffset()` overflow, `/ 0`, and infinite-loop hazards | HIGH | — | Open |
 | [6](006.md) | `SubstitutionDefinition` fails on regex-metacharacter delimiters | MEDIUM | — | Open |
 | [7](007.md) | Nested `if`/`endif`, `func`/`endfunc`, and `try`/`endtry` fail in `.vrapperrc`/`.vimrc` | MEDIUM | [#878](https://github.com/vrapper/vrapper/issues/878) | Open |

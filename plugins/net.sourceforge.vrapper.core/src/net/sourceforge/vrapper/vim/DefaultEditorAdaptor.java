@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -123,6 +124,7 @@ public class DefaultEditorAdaptor implements EditorAdaptor {
     private Selection lastSelection;
     private SearchResult searchResult;
     private int cursorBeforeMapping = -1;
+    private final List<KeyStroke> pendingInsertKeys = new ArrayList<KeyStroke>();
 
 
     public DefaultEditorAdaptor(final Platform editor, final RegisterManager registerManager,
@@ -390,6 +392,7 @@ public class DefaultEditorAdaptor implements EditorAdaptor {
             newMode = getMode(modeName);
         }
         if (currentMode != newMode) {
+            resetPendingMapping();
             listeners.fireModeAboutToSwitch(newMode);
             EditorMode oldMode = currentMode;
             if (currentMode != null) {
@@ -693,6 +696,59 @@ public class DefaultEditorAdaptor implements EditorAdaptor {
         recursionErrorMessage = errorMessage;
     }
 
+    @Override
+    public void resetPendingMapping() {
+        keyStrokeTranslator.reset();
+        resetPendingInsertTracking();
+    }
+
+    private void resetPendingInsertTracking() {
+        cursorBeforeMapping = -1;
+        pendingInsertKeys.clear();
+    }
+
+    private boolean isPendingInsertMappingValid() {
+        if (cursorBeforeMapping == -1 || pendingInsertKeys.isEmpty()) {
+            return true;
+        }
+        int currentOffset = cursorService.getPosition().getModelOffset();
+        int delta = currentOffset - cursorBeforeMapping;
+        if (delta < 0) {
+            return false;
+        }
+        StringBuilder expected = new StringBuilder(pendingInsertKeys.size());
+        for (KeyStroke stroke : pendingInsertKeys) {
+            if (stroke.getSpecialKey() != null || stroke.withCtrlKey() || stroke.withAltKey()) {
+                return delta > 0;
+            }
+            expected.append(stroke.getCharacter());
+        }
+        if (delta != expected.length() || cursorBeforeMapping + delta > modelContent.getTextLength()) {
+            return false;
+        }
+        return expected.toString().equals(modelContent.getText(cursorBeforeMapping, delta));
+    }
+
+    private int pendingCharsToDelete(int offsetDelta) {
+        if (pendingInsertKeys.isEmpty() || offsetDelta <= 0) {
+            return 0;
+        }
+        for (KeyStroke stroke : pendingInsertKeys) {
+            if (stroke.getSpecialKey() != null || stroke.withCtrlKey() || stroke.withAltKey()) {
+                return offsetDelta;
+            }
+        }
+        return Math.min(pendingInsertKeys.size(), offsetDelta);
+    }
+
+    private static boolean insertsTextInInsertMode(KeyStroke key) {
+        if (key.withCtrlKey() || key.withAltKey()) {
+            return false;
+        }
+        SpecialKey special = key.getSpecialKey();
+        return special == null || special == SpecialKey.RETURN || special == SpecialKey.TAB;
+    }
+
     private void swapMacroRecorder() {
         if (macroRecorder.isRecording()) {
             macroRecorder.stopRecording();
@@ -722,6 +778,9 @@ public class DefaultEditorAdaptor implements EditorAdaptor {
                 map = keyMapProvider.getKeyMap(keyMapName);
             }
             if (map != null) {
+                if (currentMode instanceof InsertMode && !isPendingInsertMappingValid()) {
+                    resetPendingMapping();
+                }
                 final boolean inMapping = keyStrokeTranslator.processKeyStroke(map, key);
                 if (inMapping) {
                     final Queue<RemappedKeyStroke> resultingKeyStrokes =
@@ -743,38 +802,44 @@ public class DefaultEditorAdaptor implements EditorAdaptor {
                         // case Eclipse's default insert logic becomes active (e.g. for auto-closing
                         // parentheses). Some automatic stuff can't be triggered any other way.
                         if (resultingKeyStrokes.isEmpty()) {
-                            return currentMode.handleKey(key);
+                            boolean handled = currentMode.handleKey(key);
+                            if ((!handled || key.isVirtual()) && insertsTextInInsertMode(key)) {
+                                pendingInsertKeys.add(key);
+                            }
+                            return handled;
                         }
                         // Else there are resulting key strokes, mapping exited either successfully
                         // or unsuccessfully. Are there previous characters to delete?
-                        else if (cursorService.getPosition().getModelOffset() - cursorBeforeMapping > 0) {
-
-                            try {
-                                if (didMappingSucceed || doBackTrack) {
-                                    int pendingChars = cursorService.getPosition().getModelOffset() - cursorBeforeMapping;
-                                    //delete all the pending characters we had displayed
-                                    for (int i=0; i < pendingChars; i++) {
-                                        currentMode.handleKey(new RemappedKeyStroke(new SimpleKeyStroke(SpecialKey.BACKSPACE), false));
+                        else {
+                            int offsetDelta = cursorService.getPosition().getModelOffset() - cursorBeforeMapping;
+                            int pendingChars = pendingCharsToDelete(offsetDelta);
+                            if (pendingChars > 0) {
+                                try {
+                                    if (didMappingSucceed || doBackTrack) {
+                                        //delete only the pending characters we had displayed
+                                        for (int i=0; i < pendingChars; i++) {
+                                            currentMode.handleKey(new RemappedKeyStroke(new SimpleKeyStroke(SpecialKey.BACKSPACE), false));
+                                        }
                                     }
-                                }
-                                else {
-                                    // Mapping failed. We inserted all other characters so only the
-                                    // last key should be dealt with.
+                                    else {
+                                        // Mapping failed. We inserted all other characters so only the
+                                        // last key should be dealt with.
 
-                                    // check if key is in global map.
-                                    if (KeyMap.GLOBAL_MAP.containsKey(key)) {
-                                        key = new RemappedKeyStroke(KeyMap.GLOBAL_MAP.get(key), false);
+                                        // check if key is in global map.
+                                        if (KeyMap.GLOBAL_MAP.containsKey(key)) {
+                                            key = new RemappedKeyStroke(KeyMap.GLOBAL_MAP.get(key), false);
+                                        }
+                                        return currentMode.handleKey(key);
                                     }
-                                    return currentMode.handleKey(key);
+                                } finally {
+                                    //prepare for next insert mapping
+                                    resetPendingInsertTracking();
                                 }
-                            } finally {
+                            } else {
+                                //mapping had no pending characters to remove
                                 //prepare for next insert mapping
-                                cursorBeforeMapping = -1;
+                                resetPendingInsertTracking();
                             }
-                        } else {
-                            //mapping is only one character long (no pending characters to remove)
-                            //prepare for next insert mapping
-                            cursorBeforeMapping = -1;
                         }
 
                     // ### End of Insert mode "previously entered keys" printing code ###

@@ -8,6 +8,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import org.junit.After;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -20,6 +21,12 @@ import net.sourceforge.vrapper.vim.modes.InsertMode;
 import net.sourceforge.vrapper.vim.modes.NormalMode;
 
 public class InsertModeTests extends VimTestCase {
+
+	@After
+	public void clearInsertMappings() {
+		adaptor.changeModeSafely(NormalMode.NAME);
+		type(parseKeyStrokes(":imapclear<CR>"));
+	}
 
 	@Test
 	public void test_CtrlC_exits() {
@@ -93,5 +100,80 @@ public class InsertModeTests extends VimTestCase {
 		assertEquals("foobarone\nfoobartwo\nfoobarthree", getBuffer());
 		verify(historyService).lock("block-action");
 		verify(historyService).unlock("block-action");
+	}
+
+	@Test
+	public void test_ImapPendingClearedAcrossContentAssistMode() {
+		installSaneRegisterManager();
+		adaptor.changeModeSafely(NormalMode.NAME);
+		type(parseKeyStrokes(":inoremap jj <LT>ESC<GT><CR>"));
+
+		setBuffer("");
+		type(parseKeyStrokes("ij"));
+		assertEquals("j", getBuffer());
+
+		// Eclipse ContentAssistMode activates and inserts completion text
+		adaptor.changeModeSafely(ContentAssistMode.NAME,
+				InsertMode.DONT_MOVE_CURSOR, InsertMode.RESUME_ON_MODE_ENTER);
+		content.replace(1, 0, "ava");
+		adaptor.changeModeSafely(InsertMode.NAME,
+				InsertMode.DONT_MOVE_CURSOR, InsertMode.RESUME_ON_MODE_ENTER);
+
+		// Typing 'j' after autocomplete must not pair with the stale 'j' or backspace "ava"
+		type(parseKeyStrokes("j"));
+		assertEquals(InsertMode.NAME, adaptor.getCurrentModeName());
+		assertEquals("javaj", getBuffer());
+
+		// Continuing with 'a' breaks the pending single 'j', and a fresh 'jj' exits cleanly
+		type(parseKeyStrokes("ajj"));
+		assertEquals(NormalMode.NAME, adaptor.getCurrentModeName());
+		assertEquals("javaja", getBuffer());
+	}
+
+	@Test
+	public void test_ImapPendingClearedOnExternalTextInsertionInInsertMode() {
+		installSaneRegisterManager();
+		adaptor.changeModeSafely(NormalMode.NAME);
+		type(parseKeyStrokes(":inoremap jj <LT>ESC<GT><CR>"));
+
+		setBuffer("");
+		type(parseKeyStrokes("ihelloj"));
+		assertEquals("helloj", getBuffer());
+
+		// LinkedMode / template / inline completion advances buffer inside InsertMode
+		content.replace(6, 0, "ava");
+
+		type(parseKeyStrokes("j"));
+		assertEquals(InsertMode.NAME, adaptor.getCurrentModeName());
+		assertEquals("hellojavaj", getBuffer());
+
+		type(parseKeyStrokes("xjj"));
+		assertEquals(NormalMode.NAME, adaptor.getCurrentModeName());
+		assertEquals("hellojavajx", getBuffer());
+	}
+
+	@Test
+	public void test_ImapPendingClearedOnArrowResetEditingSession() {
+		installSaneRegisterManager();
+		adaptor.changeModeSafely(NormalMode.NAME);
+		type(parseKeyStrokes(":inoremap jj <LT>ESC<GT><CR>"));
+
+		setBuffer("");
+		type(parseKeyStrokes("iabj"));
+		type(parseKeyStrokes("<LEFT><RIGHT>j"));
+		assertEquals(InsertMode.NAME, adaptor.getCurrentModeName());
+		assertEquals("abjj", getBuffer());
+	}
+
+	@Test
+	public void test_ImapBacktrackingWorksInRealInsertMode() {
+		installSaneRegisterManager();
+		adaptor.changeModeSafely(NormalMode.NAME);
+		type(parseKeyStrokes(":inoremap jjj <LT>ESC<GT><CR>"));
+		type(parseKeyStrokes(":inoremap jk X<CR>"));
+
+		setBuffer("");
+		type(parseKeyStrokes("ijjxjk<ESC>"));
+		assertEquals("jjxX", getBuffer());
 	}
 }

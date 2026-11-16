@@ -72,6 +72,8 @@ public interface EditorAdaptor {
     MacroPlayer getMacroPlayer(String macroName) throws CommandExecutionException;
     void stopMacrosAndMappings();
     void stopMacrosAndMappings(String errorMessage);
+    /** Resets any pending multi-keystroke mapping state (e.g. after mode or caret jumps). */
+    void resetPendingMapping();
     PlatformSpecificStateProvider getPlatformSpecificStateProvider();
     SearchAndReplaceService getSearchAndReplaceService();
     HighlightingService getHighlightingService();

@@ -429,6 +429,7 @@ public class InsertMode extends AbstractMode {
     }
 
     public void resetEditingSession() {
+        editorAdaptor.resetPendingMapping();
         startEditPosition = editorAdaptor.getCursorService().getPosition();
         numCharsDeleted = 0;
         count = 1;

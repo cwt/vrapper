@@ -33,6 +33,16 @@ public class KeyStrokeTranslator {
         resultingKeyStrokes  = new LinkedList<RemappedKeyStroke>();
     }
 
+    /** Clears any in-progress multi-keystroke mapping state. */
+    public void reset() {
+        currentState = null;
+        lastValue = null;
+        unconsumedKeyStrokes.clear();
+        originalKeyStrokes.clear();
+        resultingKeyStrokes.clear();
+        mappingSucceeded = false;
+    }
+
     public boolean processKeyStroke(KeyMap keymap, KeyStroke key) {
         Transition<Remapping> trans;
         if (currentState == null) {
