@@ -273,6 +273,27 @@ public class CommandLineTests extends VimTestCase {
 				content.getText());
 	}
 
+	@Test
+	public void testSubstitutionRegexMetacharDelimiters() throws CommandExecutionException {
+		when(platform.getSearchAndReplaceService()).thenReturn(new TestSearchService(content, configuration));
+		super.installSaneRegisterManager();
+		adaptor.changeModeSafely(NormalMode.NAME);
+
+		DummyTextObject defaultRange = new DummyTextObject(null);
+		String[] delims = new String[] { "|", ".", "+", "?", "[", "(", "*", "^", "$" };
+		for (String d : delims) {
+			content.setText("a/foo/b c/foo/d");
+			makeSubstitution("s" + d + "a/foo" + d + "x/bar" + d + "g").execute(adaptor, 0, defaultRange);
+			assertEquals("delimiter '" + d + "' failed", "x/bar/b c/foo/d", content.getText());
+		}
+
+		// End-to-end command-line invocation with '|' and escaped '\|' delimiter
+		content.setText("alpha|beta foo/bar");
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(0), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes(":s|alpha\\|beta|ok|g<CR>"));
+		assertEquals("ok foo/bar", content.getText());
+	}
+
 	private SubstitutionOperation makeSubstitution(String command) {
         SubstitutionDefinition definition = new SubstitutionDefinition(command, registerManager);
         return new SubstitutionOperation(definition);

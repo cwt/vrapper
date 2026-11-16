@@ -18,9 +18,13 @@ public class SubstitutionDefinition {
     public SubstitutionDefinition(String def, RegisterManager registers) throws IllegalArgumentException {
         String lastSearch = registers.getRegister("/").getContent().getText();
 		//whatever character is after 's' is our delimiter
-		String delim = "" + def.charAt( def.indexOf('s') + 1);
+		int sIndex = def.indexOf('s');
+		if (sIndex < 0 || sIndex + 1 >= def.length()) {
+			throw new IllegalArgumentException("No substitution delimiter defined");
+		}
+		String delim = "" + def.charAt(sIndex + 1);
 		//split on the delimiter, unless that delimiter is escaped with a backslash (:s/\/\///)
-		String[] fields = def.split("(?<!\\\\)"+delim, -1);
+		String[] fields = def.split("(?<!\\\\)" + Pattern.quote(delim), -1);
 		find = "";
 		replace = "";
 		flags = "";
