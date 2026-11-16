@@ -7,14 +7,17 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import net.sourceforge.vrapper.keymap.KeyMap;
 import net.sourceforge.vrapper.keymap.KeyStroke;
@@ -293,6 +296,42 @@ public class DefaultEditorAdaptor implements EditorAdaptor {
         }
     }
 
+    /**
+     * Unsupported Vimscript block constructs skipped when sourcing {@code .vrapperrc}/{@code .vimrc}.
+     */
+    private enum SkippedBlock {
+        IF("^if\\b.*", "^en(?:d(?:i(?:f)?)?)?\\b.*"),
+        FUNC("^fu(?:n(?:c(?:t(?:i(?:o(?:n)?)?)?)?)?)?\\b.*",
+                "^endf(?:u(?:n(?:c(?:t(?:i(?:o(?:n)?)?)?)?)?)?)?\\b.*"),
+        TRY("^try\\b.*", "^endt(?:r(?:y)?)?\\b.*");
+
+        private final Pattern openPattern;
+        private final Pattern closePattern;
+
+        SkippedBlock(final String openRegex, final String closeRegex) {
+            this.openPattern = Pattern.compile(openRegex);
+            this.closePattern = Pattern.compile(closeRegex);
+        }
+
+        static SkippedBlock matchOpen(final String cmd) {
+            for (final SkippedBlock kind : values()) {
+                if (kind.openPattern.matcher(cmd).matches()) {
+                    return kind;
+                }
+            }
+            return null;
+        }
+
+        static SkippedBlock matchClose(final String cmd) {
+            for (final SkippedBlock kind : values()) {
+                if (kind.closePattern.matcher(cmd).matches()) {
+                    return kind;
+                }
+            }
+            return null;
+        }
+    }
+
     @Override
     public boolean sourceConfigurationFile(final String filename) {
         File config = new File(filename);
@@ -315,41 +354,41 @@ public class DefaultEditorAdaptor implements EditorAdaptor {
         		String line;
         		CommandLineMode cmdLineMode = (CommandLineMode) modeMap.get(CommandLineMode.NAME);
         		final CommandLineParser parser = cmdLineMode.createParser();
+        		final Deque<SkippedBlock> skippedBlocks = new ArrayDeque<SkippedBlock>();
         		String trimmed;
         		while((line = reader.readLine()) != null) {
         		    lineNr++;
         			//*** skip over everything in a .vimrc file that we don't support ***//
-        			trimmed = line.trim().toLowerCase();
-        			//ignore comments and key mappings we don't support
-        			if(trimmed.equals("") || trimmed.startsWith("\"") || trimmed.contains("<silent>")) {
+        			trimmed = line.trim().toLowerCase(Locale.ENGLISH);
+        			//ignore comments and empty lines (even inside skipped blocks so '" endif' does not close)
+        			if(trimmed.equals("") || trimmed.startsWith("\"")) {
         				continue;
         			}
-        			if(trimmed.startsWith("if")) {
-        				//skip all conditional statements
-        				while((line = reader.readLine()) != null) {
-        					if(line.trim().toLowerCase().startsWith("endif")) {
-        						break;
-        					}
-        				}
-        				continue; //skip "endif" line
+        			String directive = trimmed;
+        			while (directive.startsWith(":")) {
+        			    directive = directive.substring(1).trim();
         			}
-        			if(trimmed.startsWith("func")) {
-        				//skip all function declarations
-        				while((line = reader.readLine()) != null) {
-        					if(line.trim().toLowerCase().startsWith("endfunc")) {
-        						break;
-        					}
-        				}
-        				continue; //skip "endfunction" line
+        			if (!skippedBlocks.isEmpty()) {
+        			    final SkippedBlock opened = SkippedBlock.matchOpen(directive);
+        			    if (opened != null) {
+        			        skippedBlocks.push(opened);
+        			        continue;
+        			    }
+        			    final SkippedBlock closed = SkippedBlock.matchClose(directive);
+        			    if (closed != null && skippedBlocks.contains(closed)) {
+        			        while (!skippedBlocks.isEmpty() && skippedBlocks.pop() != closed) {
+        			            // Unwind any unclosed inner block before closing the matching outer block.
+        			        }
+        			    }
+        			    continue;
         			}
-        			if(trimmed.startsWith("try")) {
-        				//skip all try declarations
-        				while((line = reader.readLine()) != null) {
-        					if(line.trim().toLowerCase().startsWith("endtry")) {
-        						break;
-        					}
-        				}
-        				continue; //skip "endtry" line
+        			if(trimmed.contains("<silent>")) {
+        				continue;
+        			}
+        			final SkippedBlock opened = SkippedBlock.matchOpen(directive);
+        			if (opened != null) {
+        			    skippedBlocks.push(opened);
+        			    continue;
         			}
         			if(trimmed.startsWith(":")) {
         			    //leading ':' is optional, skip it if it exists

@@ -81,3 +81,10 @@ Recorded for the [bug tracker](index.md). Re-run `mvn clean verify` after fixing
    - **Result:** `BUILD SUCCESS` in `14.143 s` across all 41 reactor modules.
    - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 319, Failures: 0, Errors: 0, Skipped: 2` (includes `CommandLineTests.testSubstitutionRegexMetacharDelimiters`).
    - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
+
+## Post-fix run — Bug 7 (`2026-11-16`)
+
+1. **`mvn -B clean verify --file pom.xml`:**
+   - **Result:** `BUILD SUCCESS` in `14.032 s` across all 41 reactor modules.
+   - **Test summary (`net.sourceforge.vrapper.core.tests`):** `Tests run: 320, Failures: 0, Errors: 0, Skipped: 2` (includes `VrapperRCTests.testNestedUnsupportedBlocksInSourceConfigurationFile`).
+   - **Test summary (`net.sourceforge.vrapper.plugin.surround.tests`):** `Tests run: 6, Failures: 0, Errors: 0, Skipped: 0`.
