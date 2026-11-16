@@ -880,44 +880,94 @@ public class EclipseCursorAndSelection implements CursorService, SelectionServic
     @Override
     public Position getPositionByVisualOffset(int lineNo, int visualOffset) {
         final StyledText tw = textViewer.getTextWidget();
-        final int relVOffset = visualOffset - tw.getHorizontalPixel();
-        try {
-            final IRegion region = textViewer.getDocument().getLineInformation(lineNo);
-            final int lineOffset = converter.modelOffset2WidgetOffset(region.getOffset());
-            if (region.getLength() == 0) {
-                final Point lineStartPos = tw.getLocationAtOffset(lineOffset);
-                if (relVOffset == lineStartPos.x) {
-                    // Beginning of an empty line.
-                    return new TextViewerPosition(textViewer, Space.VIEW, lineOffset);
-                } else {
-                    return null;
-                }
-            }
-            final Rectangle lineBounds = tw.getTextBounds(lineOffset, lineOffset + region.getLength() - 1);
-            if (!lineBounds.contains(relVOffset, lineBounds.y)) {
-                return null;
-            }
-            //
-            // Guess the offset by text width. The calculation is accurate if
-            // there are no <TAB> characters on the line.
-            //
-            int offset = lineOffset + (region.getLength() * visualOffset) / lineBounds.width;
-            //
-            // Check the guess and adjust is offset if missed.
-            //
-            Rectangle rect;
-            while (!(rect = tw.getTextBounds(offset, offset)).contains(relVOffset, rect.y)) {
-                if (rect.x > relVOffset) {
-                    --offset;
-                } else {
-                    ++offset;
-                }
-            }
-            return new TextViewerPosition(textViewer, Space.VIEW, offset);
-        } catch (BadLocationException e1) {
-            // No character at the specified visual offset.
+        if (lineNo < 0 || textViewer.getDocument() == null
+                || lineNo >= textViewer.getDocument().getNumberOfLines()) {
             return null;
         }
+        final int widgetLine = converter.modelLine2WidgetLine(lineNo);
+        if (widgetLine < 0 || widgetLine >= tw.getLineCount()) {
+            return null;
+        }
+        final int relVOffset = visualOffset - tw.getHorizontalPixel();
+        final int lineOffset = tw.getOffsetAtLine(widgetLine);
+        final int lineLength = tw.getLine(widgetLine).length();
+        if (lineLength == 0) {
+            final Point lineStartPos = tw.getLocationAtOffset(lineOffset);
+            if (relVOffset == lineStartPos.x) {
+                // Beginning of an empty line.
+                return new TextViewerPosition(textViewer, Space.VIEW, lineOffset);
+            }
+            return null;
+        }
+        final int lineEnd = lineOffset + lineLength - 1;
+        final Rectangle lineBounds = tw.getTextBounds(lineOffset, lineEnd);
+        if (lineBounds.width <= 0 || !lineBounds.contains(relVOffset, lineBounds.y)) {
+            return null;
+        }
+        final int offset = findOffsetAtVisualX(tw, lineOffset, lineEnd, relVOffset, lineBounds);
+        return new TextViewerPosition(textViewer, Space.VIEW, offset);
+    }
+
+    /**
+     * Finds the widget offset inside [{@code lineStart}, {@code lineEnd}] matching {@code relVOffset}.
+     * Uses an overflow-safe proportional initial guess followed by bounded binary search, with a
+     * capped fallback scan for zero-width or non-monotonic (e.g. RTL) glyphs.
+     */
+    private static int findOffsetAtVisualX(final StyledText tw, final int lineStart,
+            final int lineEnd, final int relVOffset, final Rectangle lineBounds) {
+        int lo = lineStart;
+        int hi = lineEnd;
+        final long span = (long) hi - lo + 1L;
+        int probe = lo + (int) ((span * ((long) relVOffset - lineBounds.x)) / lineBounds.width);
+        probe = Math.max(lo, Math.min(hi, probe));
+
+        int exactZeroWidth = -1;
+        int closestOffset = lineStart;
+        int closestDist = Integer.MAX_VALUE;
+
+        while (lo <= hi) {
+            final Rectangle rect = tw.getTextBounds(probe, probe);
+            if (rect.contains(relVOffset, rect.y)) {
+                return probe;
+            }
+            if (rect.width == 0 && rect.x == relVOffset && exactZeroWidth == -1) {
+                exactZeroWidth = probe;
+            }
+            final int dist = distanceToRectX(rect, relVOffset);
+            if (dist < closestDist) {
+                closestDist = dist;
+                closestOffset = probe;
+            }
+            if (rect.x > relVOffset) {
+                hi = probe - 1;
+            } else {
+                lo = probe + 1;
+            }
+            if (lo <= hi) {
+                probe = lo + (hi - lo) / 2;
+            }
+        }
+
+        // Fallback scan for non-monotonic layouts (e.g. RTL runs), strictly bounded.
+        final int scanLimit = Math.min(lineEnd, lineStart + 4095);
+        for (int offset = lineStart; offset <= scanLimit; offset++) {
+            final Rectangle rect = tw.getTextBounds(offset, offset);
+            if (rect.contains(relVOffset, rect.y)) {
+                return offset;
+            }
+        }
+        return exactZeroWidth != -1 ? exactZeroWidth : closestOffset;
+    }
+
+    private static int distanceToRectX(final Rectangle rect, final int x) {
+        if (x < rect.x) {
+            return rect.x - x;
+        }
+        final int right = rect.x + Math.max(0, rect.width - 1);
+        if (x > right) {
+            return x - right;
+        }
+        return 0;
     }
 
     @Override
