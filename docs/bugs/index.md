@@ -30,10 +30,10 @@ Source-level and build/test audit findings for the `vrapper` JDK 25 modernizatio
 
 | Severity | Open | Fixed | Total |
 |---|---:|---:|---:|
-| HIGH | 6 | 0 | 6 |
+| HIGH | 5 | 1 | 6 |
 | MEDIUM | 6 | 0 | 6 |
 | LOW | 1 | 0 | 1 |
-| **Total** | **13** | **0** | **13** |
+| **Total** | **12** | **1** | **13** |
 
 ## All Bugs
 
@@ -51,4 +51,4 @@ Source-level and build/test audit findings for the `vrapper` JDK 25 modernizatio
 | [10](010.md) | `SubwordMotion` uses stale `fromPosition` on multi-step calls and throws on EOF | MEDIUM | [#854](https://github.com/vrapper/vrapper/issues/854) | Open |
 | [11](011.md) | Listener and `WeakHashMap` reference leaks on editor close and `MultiPageEditorPart` | MEDIUM | — | Open |
 | [12](012.md) | Missing null checks in `EclipsePlatform` undo wrapper and `CLabel.shortenText` | LOW | [#828](https://github.com/vrapper/vrapper/issues/828) | Open |
-| [13](013.md) | Core unit tests fail on JDK 25 due to ByteBuddy `1.14.11` / Mockito `5.10.0` target dependency | HIGH | — | Open |
+| [13](013.md) | Core unit tests fail on JDK 25 due to ByteBuddy `1.14.11` / Mockito `5.10.0` target dependency | HIGH | — | Fixed |

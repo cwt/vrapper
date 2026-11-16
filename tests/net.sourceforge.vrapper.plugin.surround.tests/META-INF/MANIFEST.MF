@@ -13,8 +13,8 @@ Import-Package: junit.framework;version="4.13.2",
  org.junit.runners;version="4.13.2"
 Require-Bundle: org.mockito.junit-jupiter;bundle-version="5.10.0",
  org.mockito.mockito-core;bundle-version="5.10.0",
- net.bytebuddy.byte-buddy;bundle-version="1.14.11",
- net.bytebuddy.byte-buddy-agent;bundle-version="1.14.11",
+ net.bytebuddy.byte-buddy;bundle-version="1.18.17",
+ net.bytebuddy.byte-buddy-agent;bundle-version="1.18.17",
  org.objenesis;bundle-version="3.3.0",
  net.sourceforge.vrapper.testutil;bundle-version="1.0.0"
 

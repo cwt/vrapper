@@ -143,12 +143,12 @@ maven ByteBuddy
 	dependency {
 		groupId="net.bytebuddy"
 		artifactId="byte-buddy"
-		version="1.14.11"
+		version="1.18.17"
 	}
 	dependency {
 		groupId="net.bytebuddy"
 		artifactId="byte-buddy-agent"
-		version="1.14.11"
+		version="1.18.17"
 	}
 }
 

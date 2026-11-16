@@ -9,6 +9,8 @@
 		<tycho.version>5.0.4</tycho.version>
 		<java.version>17</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<!-- Override Maven 3.10+ Super POM's fixed 1980-02-01 outputTimestamp so Tycho uses build start time for OSGi qualifiers -->
+		<project.build.outputTimestamp>-</project.build.outputTimestamp>
 	</properties>
 	
 	<build>
