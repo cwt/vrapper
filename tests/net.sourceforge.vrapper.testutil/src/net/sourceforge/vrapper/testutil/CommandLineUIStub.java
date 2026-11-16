@@ -33,6 +33,9 @@ public class CommandLineUIStub implements CommandLineUI {
     public void resetContents(String contents) {
         this.contents.setLength(0);
         this.contents.append(contents);
+        this.position = this.contents.length();
+        this.selectionStart = this.position;
+        this.selectionLength = 0;
     }
 
     @Override

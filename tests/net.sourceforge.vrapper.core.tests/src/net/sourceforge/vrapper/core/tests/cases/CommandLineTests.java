@@ -230,6 +230,49 @@ public class CommandLineTests extends VimTestCase {
 		assertEquals("one Two three two", content.getText());
 	}
 
+	@Test
+	public void testSubstitutionVisualSelectionPercentV() {
+		when(platform.getSearchAndReplaceService()).thenReturn(new TestSearchService(content, configuration));
+		super.installSaneRegisterManager();
+		adaptor.changeModeSafely(NormalMode.NAME);
+
+		// Normal mode with no prior visual selection should not match \%V
+		content.setText("foo bar");
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(0), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes(":s/\\%Vfoo/XXX/g<CR>"));
+		assertEquals("foo bar", content.getText());
+
+		// Multi-line visual block: only columns inside the block are replaced (#848 / Bug 3),
+		// even when matches exist outside the block columns and shorter lines fall inside the range.
+		content.setText(
+				"foo foo foo\n"
+				+ "hi\n"
+				+ "foo bar foo\n"
+				+ "foo foo foo");
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(0), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("llll<C-v>jjjll:s/\\%Vfoo/LONGER/g<CR>"));
+		assertEquals(
+				"foo LONGER foo\n"
+				+ "hi\n"
+				+ "foo bar foo\n"
+				+ "foo LONGER foo",
+				content.getText());
+
+		// Multi-line characterwise visual selection: respects first-line start and last-line end
+		// even as earlier line lengths shrink.
+		content.setText(
+				"aa foo foo\n"
+				+ "bb foo foo\n"
+				+ "cc foo foo");
+		adaptor.setPosition(cursorAndSelection.newPositionForModelOffset(0), StickyColumnPolicy.ON_CHANGE);
+		type(parseKeyStrokes("lllvjjll:s/\\%Vfoo/X/g<CR>"));
+		assertEquals(
+				"aa X X\n"
+				+ "bb X X\n"
+				+ "cc X foo",
+				content.getText());
+	}
+
 	private SubstitutionOperation makeSubstitution(String command) {
         SubstitutionDefinition definition = new SubstitutionDefinition(command, registerManager);
         return new SubstitutionOperation(definition);

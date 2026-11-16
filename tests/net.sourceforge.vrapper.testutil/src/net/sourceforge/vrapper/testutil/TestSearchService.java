@@ -65,7 +65,7 @@ public class TestSearchService implements SearchAndReplaceService {
         int length = end - start;
 
         StringBuilder result = new StringBuilder();
-        String lineContent = content.getText().substring(start, length);
+        String lineContent = content.getText().substring(start, end);
         int patternFlags = 0;
         boolean doReplace = ! flags.contains("n");
         boolean allMatches = flags.contains("g");
