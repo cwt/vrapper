@@ -45,9 +45,6 @@
    <feature url="features/net.sourceforge.vrapper.eclipse.jdt.feature_0.75.0.qualifier.jar" id="net.sourceforge.vrapper.eclipse.jdt.feature" version="0.75.0.qualifier">
       <category name="Optional Programming Language Plugins"/>
    </feature>
-   <feature url="features/net.sourceforge.vrapper.eclipse.pydev.feature_0.75.0.qualifier.jar" id="net.sourceforge.vrapper.eclipse.pydev.feature" version="0.75.0.qualifier">
-      <category name="Optional Programming Language Plugins"/>
-   </feature>
    <feature id="net.sourceforge.vrapper.feature">
       <category name="Vrapper"/>
    </feature>

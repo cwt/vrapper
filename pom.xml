@@ -6,7 +6,7 @@
 	<packaging>pom</packaging>
 
 	<properties>
-		<tycho.version>4.0.6</tycho.version>
+		<tycho.version>5.0.4</tycho.version>
 		<java.version>17</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	</properties>
@@ -42,7 +42,7 @@
 						<optimize>true</optimize>
 
 						<!-- compile with Java version as defined in manifest -->
-						<useJDK>BREE</useJDK>
+						<useJDK>SYSTEM</useJDK>
 
 						<!-- fail the build if effective compiler does not fit manifest BREE -->
 						<strictCompilerTarget>true</strictCompilerTarget>
